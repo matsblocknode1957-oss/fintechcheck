@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FintechCheck — Correlated Risk Engine</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#000;--card:#0d0d0d;--card2:#111;--bd:#1a1a1a;--bd2:#252525;
+  --txt:#e0e0e0;--dim:#666;--dark:#333;
+  --crit:#ef4444;--high:#f97316;--watch:#eab308;--low:#22c55e;
+  --mono:'Courier New',monospace;
+}
+html,body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;min-height:100%}
+
+/* ── Top bar ── */
+#topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:46px;
+  background:#050505;border-bottom:1px solid var(--bd);
+  position:sticky;top:0;z-index:100;
+}
+.tb-brand{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--txt)}
+.tb-brand span{color:var(--dim)}
+.tb-live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--low)}
+.pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--low);animation:pdot 2s ease-in-out infinite}
+.pulse-dot.err{background:var(--crit);animation:none}
+@keyframes pdot{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}50%{box-shadow:0 0 0 6px rgba(34,197,94,0)}}
+#utc-time{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.04em}
+
+/* ── Layout ── */
+#content{padding:14px 20px 64px;display:flex;flex-direction:column;gap:12px}
+.row1,.row2{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+
+/* ── Card base ── */
+.card{background:var(--card);border:1px solid var(--bd);border-radius:7px;overflow:hidden}
+.card-hd{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 13px;border-bottom:1px solid var(--bd);
+}
+.card-title{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.15em;color:var(--dim);text-transform:uppercase}
+.badge{font-family:var(--mono);font-size:8px;font-weight:700;padding:2px 7px;border-radius:3px;letter-spacing:.1em}
+
+/* ── Main gauge ── */
+.mg-wrap{display:flex;flex-direction:column;align-items:center;padding:16px 12px 12px;gap:4px}
+#main-gauge-svg{width:158px;height:158px;transition:filter .5s}
+
+/* ── History chart ── */
+#hchart-wrap{padding:10px 13px 13px}
+#history-chart{width:100%;height:148px;display:block}
+
+/* ── Prices table ── */
+.ptable{width:100%;border-collapse:collapse}
+.ptable th{
+  font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.12em;
+  color:var(--dim);padding:7px 11px;border-bottom:1px solid var(--bd);
+  background:var(--card2);text-align:left;white-space:nowrap;
+}
+.ptable th:nth-child(n+2),.ptable td:nth-child(n+2){text-align:right}
+.ptable th:last-child,.ptable td:last-child{text-align:center}
+.ptable td{
+  padding:8px 11px;border-bottom:1px solid var(--bd);
+  font-size:11px;
+}
+.ptable tr:last-child td{border-bottom:none}
+.ptable tbody tr:hover td{background:var(--card2)}
+.pill{font-family:var(--mono);font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;letter-spacing:.08em}
+
+/* ── System status ── */
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:13px}
+.sblock{background:var(--card2);border:1px solid var(--bd);border-radius:5px;padding:9px 11px}
+.sblock-lbl{font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:.12em;margin-bottom:3px}
+.sblock-val{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1}
+
+/* ── Tier cards ── */
+.tier{
+  background:var(--card);border:1px solid var(--bd);border-radius:7px;
+  padding:13px;opacity:.38;
+  transition:opacity .4s,border-color .4s,box-shadow .4s;
+}
+.tier.active{opacity:1}
+.tier-label{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.15em;margin-bottom:9px}
+.tier canvas{width:100%;height:38px;display:block;margin-bottom:9px}
+.tier-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tstat{background:#111;border:1px solid var(--bd);border-radius:4px;padding:6px 8px}
+.tstat-lbl{font-family:var(--mono);font-size:7px;color:var(--dim);letter-spacing:.1em;margin-bottom:2px}
+.tstat-val{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1}
+
+/* ── Small gauges (row3) ── */
+.sgauge-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:13px}
+.sgauge{display:flex;flex-direction:column;align-items:center;gap:5px}
+.sgauge svg{width:92px;height:92px}
+.sgauge-lbl{font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:.1em;text-align:center}
+
+/* ── How it works ── */
+.howto-body{padding:13px;display:flex;flex-direction:column;gap:10px}
+.hi{display:flex;gap:10px;align-items:flex-start}
+.hi-icon{
+  width:28px;height:28px;border-radius:5px;background:var(--card2);border:1px solid var(--bd);
+  display:grid;place-items:center;font-size:13px;flex-shrink:0;margin-top:1px;
+}
+.hi h4{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--txt);margin-bottom:3px}
+.hi p{font-size:11px;color:var(--dim);line-height:1.55}
+
+/* ── Alerts ── */
+.alerts-body{max-height:310px;overflow-y:auto}
+.alerts-body::-webkit-scrollbar{width:3px}
+.alerts-body::-webkit-scrollbar-thumb{background:var(--bd2)}
+.arow{display:flex;gap:9px;padding:9px 13px;border-bottom:1px solid var(--bd);animation:aslide .25s ease}
+.arow:last-child{border-bottom:none}
+@keyframes aslide{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.sev{
+  flex-shrink:0;font-family:var(--mono);font-size:7px;font-weight:700;
+  padding:2px 5px;border-radius:2px;letter-spacing:.08em;margin-top:2px;
+}
+.sev-CRITICAL{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+.sev-HIGH    {background:rgba(249,115,22,.12);color:#fdba74;border:1px solid rgba(249,115,22,.3)}
+.sev-MEDIUM  {background:rgba(234,179,8,.12) ;color:#fde047;border:1px solid rgba(234,179,8,.3) }
+.sev-LOW     {background:rgba(34,197,94,.12) ;color:#86efac;border:1px solid rgba(34,197,94,.3) }
+.abody{flex:1;min-width:0}
+.arule{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.amsg {font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.ats  {font-family:var(--mono);font-size:9px;color:var(--dark);margin-top:3px}
+.empty{text-align:center;padding:38px 13px;color:var(--dark);font-family:var(--mono);font-size:10px;letter-spacing:.1em}
+
+/* ── Bottom bar ── */
+#bottombar{
+  position:fixed;bottom:0;left:0;right:0;height:44px;
+  background:#050505;border-top:1px solid var(--bd);
+  display:flex;align-items:center;justify-content:space-around;
+  padding:0 20px;z-index:100;
+}
+.bbstat{display:flex;align-items:center;gap:9px}
+.bblbl{font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+.bbval{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--txt)}
+.bbdiv{width:1px;height:18px;background:var(--bd2)}
+
+canvas{display:block}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<nav id="topbar">
+  <div class="tb-brand">FINTECHCHECK <span>— CORRELATED RISK ENGINE</span></div>
+  <div class="tb-live"><div class="pulse-dot" id="live-dot"></div><span id="live-txt">LIVE</span></div>
+  <div id="utc-time">—</div>
+</nav>
+
+<div id="content">
+
+  <!-- ROW 1 -->
+  <div class="row1">
+
+    <!-- 1a: Main CRE gauge -->
+    <div class="card">
+      <div class="card-hd">
+        <span class="card-title">CRE Risk Score</span>
+        <span class="badge" id="lvl-badge">LOW</span>
+      </div>
+      <div class="mg-wrap">
+        <svg id="main-gauge-svg" viewBox="0 0 160 160">
+          <circle cx="80" cy="80" r="64" fill="none" stroke="#141414" stroke-width="13"
+            stroke-dasharray="301.59 100.53" stroke-linecap="round" transform="rotate(135 80 80)"/>
+          <circle id="mg-arc" cx="80" cy="80" r="64" fill="none" stroke="#22c55e" stroke-width="13"
+            stroke-dasharray="0 402.12" stroke-linecap="round" transform="rotate(135 80 80)"
+            style="transition:stroke-dasharray .8s cubic-bezier(.4,0,.2,1),stroke .4s"/>
+          <text id="mg-num" x="80" y="76" text-anchor="middle"
+            font-family="'Courier New',monospace" font-size="40" font-weight="700"
+            fill="#22c55e" style="transition:fill .4s">0</text>
+          <text x="80" y="95" text-anchor="middle" font-family="'Courier New',monospace"
+            font-size="8" fill="#333" letter-spacing="3">COMPOSITE</text>
+          <text id="mg-lbl" x="80" y="112" text-anchor="middle" font-family="'Courier New',monospace"
+            font-size="11" font-weight="700" fill="#22c55e" letter-spacing="2"
+            style="transition:fill .4s">LOW</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 1b: Score history chart -->
+    <div class="card">
+      <div class="card-hd">
+        <span class="card-title">CRE Score Over Time</span>
+        <span class="badge" id="hcount-badge" style="background:#111;color:#444;border:1px solid #1a1a1a">0 pts</span>
+      </div>
+      <div id="hchart-wrap"><canvas id="history-chart"></canvas></div>
+    </div>
+
+    <!-- 1c: Prices -->
+    <div class="card">
+      <div class="card-hd">
+        <span class="card-title">Stablecoin Prices</span>
+        <span class="badge" id="price-badge" style="background:#111;color:#444;border:1px solid #1a1a1a">—</span>
+      </div>
+      <table class="ptable">
+        <thead><tr><th>ASSET</th><th>PRICE</th><th>BPS</th><th>STATUS</th></tr></thead>
+        <tbody id="prices-tbody"><tr><td colspan="4" class="empty">LOADING…</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- 1d: System status -->
+    <div class="card">
+      <div class="card-hd">
+        <span class="card-title">System Status</span>
+        <span class="badge" style="background:rgba(34,197,94,.1);color:#86efac;border:1px solid rgba(34,197,94,.25)">ACTIVE</span>
+      </div>
+      <div class="sgrid">
+        <div class="sblock">
+          <div class="sblock-lbl">COINS</div>
+          <div class="sblock-val" id="s-coins" style="color:#22c55e">—</div>
+        </div>
+        <div class="sblock">
+          <div class="sblock-lbl">PROTOCOLS</div>
+          <div class="sblock-val" id="s-protos" style="color:#3b82f6">—</div>
+        </div>
+        <div class="sblock">
+          <div class="sblock-lbl">ALERTS FIRED</div>
+          <div class="sblock-val" id="s-alerts" style="color:#f97316">0</div>
+        </div>
+        <div class="sblock">
+          <div class="sblock-lbl">LAST UPDATE</div>
+          <div class="sblock-val" id="s-updated" style="color:#a78bfa;font-size:13px">—</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /row1 -->
+
+  <!-- ROW 2 — Tier cards -->
+  <div class="row2">
+
+    <div class="tier" id="tier-0">
+      <div class="tier-label" style="color:#22c55e">■ STABLE</div>
+      <canvas id="spark-0"></canvas>
+      <div class="tier-stats">
+        <div class="tstat"><div class="tstat-lbl">PEG STRESS</div><div class="tstat-val" id="t0-peg" style="color:#22c55e">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">LIQ STRESS</div><div class="tstat-val" id="t0-liq" style="color:#22c55e">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">FLOW PRESS</div><div class="tstat-val" id="t0-flow" style="color:#22c55e">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">COMPOSITE</div><div class="tstat-val" id="t0-comp" style="color:#22c55e">—</div></div>
+      </div>
+    </div>
+
+    <div class="tier" id="tier-1">
+      <div class="tier-label" style="color:#eab308">▲ WATCH</div>
+      <canvas id="spark-1"></canvas>
+      <div class="tier-stats">
+        <div class="tstat"><div class="tstat-lbl">PEG STRESS</div><div class="tstat-val" id="t1-peg" style="color:#eab308">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">LIQ STRESS</div><div class="tstat-val" id="t1-liq" style="color:#eab308">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">FLOW PRESS</div><div class="tstat-val" id="t1-flow" style="color:#eab308">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">COMPOSITE</div><div class="tstat-val" id="t1-comp" style="color:#eab308">—</div></div>
+      </div>
+    </div>
+
+    <div class="tier" id="tier-2">
+      <div class="tier-label" style="color:#f97316">◆ ELEVATED</div>
+      <canvas id="spark-2"></canvas>
+      <div class="tier-stats">
+        <div class="tstat"><div class="tstat-lbl">PEG STRESS</div><div class="tstat-val" id="t2-peg" style="color:#f97316">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">LIQ STRESS</div><div class="tstat-val" id="t2-liq" style="color:#f97316">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">FLOW PRESS</div><div class="tstat-val" id="t2-flow" style="color:#f97316">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">COMPOSITE</div><div class="tstat-val" id="t2-comp" style="color:#f97316">—</div></div>
+      </div>
+    </div>
+
+    <div class="tier" id="tier-3">
+      <div class="tier-label" style="color:#ef4444">⚠ CRITICAL</div>
+      <canvas id="spark-3"></canvas>
+      <div class="tier-stats">
+        <div class="tstat"><div class="tstat-lbl">PEG STRESS</div><div class="tstat-val" id="t3-peg" style="color:#ef4444">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">LIQ STRESS</div><div class="tstat-val" id="t3-liq" style="color:#ef4444">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">FLOW PRESS</div><div class="tstat-val" id="t3-flow" style="color:#ef4444">—</div></div>
+        <div class="tstat"><div class="tstat-lbl">COMPOSITE</div><div class="tstat-val" id="t3-comp" style="color:#ef4444">—</div></div>
+      </div>
+    </div>
+
+  </div><!-- /row2 -->
+
+  <!-- ROW 3 -->
+  <div class="row3">
+
+    <!-- 3a: Risk breakdown gauges -->
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Risk Breakdown</span></div>
+      <div class="sgauge-grid">
+
+        <div class="sgauge">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#141414" stroke-width="9"
+              stroke-dasharray="179.07 59.69" stroke-linecap="round" transform="rotate(135 50 50)"/>
+            <circle id="sg-peg" cx="50" cy="50" r="38" fill="none" stroke="#22c55e" stroke-width="9"
+              stroke-dasharray="0 238.76" stroke-linecap="round" transform="rotate(135 50 50)"
+              style="transition:stroke-dasharray .7s ease,stroke .4s"/>
+            <text id="sv-peg" x="50" y="55" text-anchor="middle"
+              font-family="'Courier New',monospace" font-size="22" font-weight="700"
+              fill="#22c55e" style="transition:fill .4s">0</text>
+          </svg>
+          <div class="sgauge-lbl">PEG STRESS</div>
+        </div>
+
+        <div class="sgauge">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#141414" stroke-width="9"
+              stroke-dasharray="179.07 59.69" stroke-linecap="round" transform="rotate(135 50 50)"/>
+            <circle id="sg-liq" cx="50" cy="50" r="38" fill="none" stroke="#22c55e" stroke-width="9"
+              stroke-dasharray="0 238.76" stroke-linecap="round" transform="rotate(135 50 50)"
+              style="transition:stroke-dasharray .7s ease,stroke .4s"/>
+            <text id="sv-liq" x="50" y="55" text-anchor="middle"
+              font-family="'Courier New',monospace" font-size="22" font-weight="700"
+              fill="#22c55e" style="transition:fill .4s">0</text>
+          </svg>
+          <div class="sgauge-lbl">LIQ STRESS</div>
+        </div>
+
+        <div class="sgauge">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#141414" stroke-width="9"
+              stroke-dasharray="179.07 59.69" stroke-linecap="round" transform="rotate(135 50 50)"/>
+            <circle id="sg-flow" cx="50" cy="50" r="38" fill="none" stroke="#22c55e" stroke-width="9"
+              stroke-dasharray="0 238.76" stroke-linecap="round" transform="rotate(135 50 50)"
+              style="transition:stroke-dasharray .7s ease,stroke .4s"/>
+            <text id="sv-flow" x="50" y="55" text-anchor="middle"
+              font-family="'Courier New',monospace" font-size="22" font-weight="700"
+              fill="#22c55e" style="transition:fill .4s">0</text>
+          </svg>
+          <div class="sgauge-lbl">FLOW PRESSURE</div>
+        </div>
+
+        <div class="sgauge">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#141414" stroke-width="9"
+              stroke-dasharray="179.07 59.69" stroke-linecap="round" transform="rotate(135 50 50)"/>
+            <circle id="sg-conf" cx="50" cy="50" r="38" fill="none" stroke="#22c55e" stroke-width="9"
+              stroke-dasharray="0 238.76" stroke-linecap="round" transform="rotate(135 50 50)"
+              style="transition:stroke-dasharray .7s ease,stroke .4s"/>
+            <text id="sv-conf" x="50" y="55" text-anchor="middle"
+              font-family="'Courier New',monospace" font-size="22" font-weight="700"
+              fill="#22c55e" style="transition:fill .4s">—</text>
+          </svg>
+          <div class="sgauge-lbl">CONFIDENCE</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 3b: How it works -->
+    <div class="card">
+      <div class="card-hd"><span class="card-title">How It Works</span></div>
+      <div class="howto-body">
+        <div class="hi">
+          <div class="hi-icon">⬡</div>
+          <div>
+            <h4>CRE ENGINE</h4>
+            <p>Condition-Rule-Effect engine evaluates registered rules against every risk snapshot. Rules are pure functions — no ML opacity. Add a rule by calling <code style="color:#666">ruleEngine.register()</code>.</p>
+          </div>
+        </div>
+        <div class="hi">
+          <div class="hi-icon">◉</div>
+          <div>
+            <h4>PEGCHECK</h4>
+            <p>Multi-source price feeds via Pyth + Chainlink. Monitors USDC, DAI, FRAX and LUSD for depeg. Deviation scored in basis points against target peg.</p>
+          </div>
+        </div>
+        <div class="hi">
+          <div class="hi-icon">▦</div>
+          <div>
+            <h4>LIQUIDLENS</h4>
+            <p>On-chain liquidation, mint/burn and whale transfer tracking. Cascade risk scored from a 1-hour rolling volume window.</p>
+          </div>
+        </div>
+        <div class="hi">
+          <div class="hi-icon">⬕</div>
+          <div>
+            <h4>CHAINLINK PoR</h4>
+            <p>Proof-of-Reserves attestations validate collateral backing on a 60s poll. Undercollateralisation triggers systemic risk escalation.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3c: Alerts feed -->
+    <div class="card">
+      <div class="card-hd">
+        <span class="card-title">Live Alerts Feed</span>
+        <span class="badge" id="alert-count-badge" style="background:#111;color:#444;border:1px solid #1a1a1a">0</span>
+      </div>
+      <div class="alerts-body" id="alerts-list">
+        <div class="empty">[ NO ALERTS — MONITORING ACTIVE ]</div>
+      </div>
+    </div>
+
+  </div><!-- /row3 -->
+
+</div><!-- /content -->
+
+<!-- BOTTOM BAR -->
+<footer id="bottombar">
+  <div class="bbstat"><span class="bblbl">Coins Monitored</span><span class="bbval" id="bb-coins">8</span></div>
+  <div class="bbdiv"></div>
+  <div class="bbstat"><span class="bblbl">Protocols</span><span class="bbval" id="bb-protos">2</span></div>
+  <div class="bbdiv"></div>
+  <div class="bbstat"><span class="bblbl">Data Points</span><span class="bbval">1500+</span></div>
+  <div class="bbdiv"></div>
+  <div class="bbstat"><span class="bblbl">Detection Latency</span><span class="bbval" style="color:#22c55e">&lt;5s</span></div>
+</footer>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────
+const MAX_H = 20;
+// Main gauge r=64: circ=402.124, arc(270°)=301.593
+const MG_CIRC = 402.124, MG_ARC = 301.593;
+// Small gauge r=38: circ=238.761, arc(270°)=179.071
+const SG_CIRC = 238.761, SG_ARC = 179.071;
+
+// ── State ─────────────────────────────────────────────────────────
+let history = [];   // {ts,composite,pegStress,liquidationStress,flowPressure}
+let totalAlerts = 0;
+
+// ── Color/level helpers ───────────────────────────────────────────
+function col(v) {
+  if (v >= 75) return '#ef4444';
+  if (v >= 50) return '#f97316';
+  if (v >= 25) return '#eab308';
+  return '#22c55e';
+}
+
+const LEVELS = [
+  { label:'LOW',      tierIdx:0, col:'#22c55e', bg:'rgba(34,197,94,.12)',  bd:'rgba(34,197,94,.28)'  },
+  { label:'WATCH',    tierIdx:1, col:'#eab308', bg:'rgba(234,179,8,.12)',  bd:'rgba(234,179,8,.28)'  },
+  { label:'ELEVATED', tierIdx:2, col:'#f97316', bg:'rgba(249,115,22,.12)', bd:'rgba(249,115,22,.28)' },
+  { label:'CRITICAL', tierIdx:3, col:'#ef4444', bg:'rgba(239,68,68,.12)',  bd:'rgba(239,68,68,.28)'  },
+];
+
+function level(v) {
+  if (v >= 75) return LEVELS[3];
+  if (v >= 50) return LEVELS[2];
+  if (v >= 25) return LEVELS[1];
+  return LEVELS[0];
+}
+
+// ── UTC clock ─────────────────────────────────────────────────────
+(function tickClock() {
+  document.getElementById('utc-time').textContent =
+    new Date().toUTCString().replace('GMT','UTC');
+  setTimeout(tickClock, 1000);
+})();
+
+// ── Main gauge ────────────────────────────────────────────────────
+function setMainGauge(v) {
+  const c  = col(v);
+  const lv = level(v);
+  const f  = (MG_ARC * v / 100).toFixed(2);
+  document.getElementById('mg-arc').setAttribute('stroke-dasharray', `${f} ${(MG_CIRC - f).toFixed(2)}`);
+  document.getElementById('mg-arc').setAttribute('stroke', c);
+  document.getElementById('mg-num').textContent = v;
+  document.getElementById('mg-num').setAttribute('fill', c);
+  document.getElementById('mg-lbl').textContent = lv.label;
+  document.getElementById('mg-lbl').setAttribute('fill', c);
+  document.getElementById('main-gauge-svg').style.filter = `drop-shadow(0 0 14px ${c}55)`;
+
+  const b = document.getElementById('lvl-badge');
+  b.textContent = lv.label;
+  b.style.cssText = `background:${lv.bg};color:${lv.col};border:1px solid ${lv.bd}`;
+}
+
+// ── Small gauges ──────────────────────────────────────────────────
+function setSmallGauge(id_arc, id_txt, v) {
+  const c = col(v);
+  const f = (SG_ARC * v / 100).toFixed(2);
+  document.getElementById(id_arc).setAttribute('stroke-dasharray', `${f} ${(SG_CIRC - f).toFixed(2)}`);
+  document.getElementById(id_arc).setAttribute('stroke', c);
+  document.getElementById(id_txt).textContent = v;
+  document.getElementById(id_txt).setAttribute('fill', c);
+}
+
+// ── Tier cards ────────────────────────────────────────────────────
+const TIER_COLS = ['#22c55e','#eab308','#f97316','#ef4444'];
+
+function updateTiers(risk) {
+  const lv = level(risk.composite);
+  for (let i = 0; i < 4; i++) {
+    const card = document.getElementById('tier-' + i);
+    const active = i === lv.tierIdx;
+    card.classList.toggle('active', active);
+    if (active) {
+      card.style.borderColor = lv.col;
+      card.style.boxShadow   = `0 0 22px ${lv.col}22, inset 0 0 28px ${lv.col}08`;
+    } else {
+      card.style.borderColor = '#1a1a1a';
+      card.style.boxShadow   = 'none';
+    }
+    document.getElementById(`t${i}-peg`).textContent  = risk.pegStress;
+    document.getElementById(`t${i}-liq`).textContent  = risk.liquidationStress;
+    document.getElementById(`t${i}-flow`).textContent = risk.flowPressure;
+    document.getElementById(`t${i}-comp`).textContent = risk.composite;
+  }
+}
+
+// ── Canvas helpers ────────────────────────────────────────────────
+function initCanvas(el) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = el.offsetWidth  || el.parentElement.offsetWidth  || 300;
+  const h = el.offsetHeight || 148;
+  el.width  = w * dpr;
+  el.height = h * dpr;
+  const ctx = el.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, w, h };
+}
+
+// ── History line chart ────────────────────────────────────────────
+function drawHistory() {
+  const el = document.getElementById('history-chart');
+  const { ctx, w, h } = initCanvas(el);
+  const pad = { t:12, r:12, b:26, l:30 };
+  const cw = w - pad.l - pad.r, ch = h - pad.t - pad.b;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background bands (100→75 crit, 75→50 high, 50→25 watch, 25→0 low)
+  const bands = [
+    [.75,1,'rgba(239,68,68,.07)'],
+    [.50,.75,'rgba(249,115,22,.07)'],
+    [.25,.50,'rgba(234,179,8,.07)'],
+    [0,.25,'rgba(34,197,94,.07)'],
+  ];
+  for (const [lo,hi,c] of bands) {
+    ctx.fillStyle = c;
+    ctx.fillRect(pad.l, pad.t+(1-hi)*ch, cw, (hi-lo)*ch);
+  }
+
+  // Grid + Y labels
+  ctx.font = `9px 'Courier New'`;
+  ctx.textAlign = 'right';
+  for (let v = 0; v <= 100; v += 25) {
+    const y = pad.t + (1 - v/100) * ch;
+    ctx.strokeStyle = '#1c1c1c'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+cw, y); ctx.stroke();
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillText(v, pad.l - 4, y + 3);
+  }
+
+  document.getElementById('hcount-badge').textContent = history.length + ' pts';
+
+  if (history.length < 2) {
+    ctx.fillStyle = '#2a2a2a';
+    ctx.font = `10px 'Courier New'`; ctx.textAlign = 'center';
+    ctx.fillText('AWAITING DATA…', pad.l + cw/2, pad.t + ch/2 + 4);
+    return;
+  }
+
+  const pts = history.map((d, i) => ({
+    x: pad.l + (i / (MAX_H - 1)) * cw,
+    y: pad.t + (1 - d.composite/100) * ch,
+    v: d.composite,
+  }));
+
+  // Gradient line
+  const grad = ctx.createLinearGradient(pts[0].x, 0, pts[pts.length-1].x, 0);
+  pts.forEach((p, i) => grad.addColorStop(i / (pts.length-1), col(p.v)));
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.strokeStyle = grad; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+
+  // Dots
+  for (const p of pts) {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, Math.PI*2);
+    ctx.fillStyle = col(p.v); ctx.fill();
+  }
+}
+
+// ── Sparklines ────────────────────────────────────────────────────
+function drawSparkline(idx) {
+  if (history.length < 2) return;
+  const el = document.getElementById('spark-' + idx);
+  const { ctx, w, h } = initCanvas(el);
+  const pad = 3;
+  const cw = w - pad*2, ch = h - pad*2;
+
+  ctx.clearRect(0, 0, w, h);
+
+  const tint = TIER_COLS[idx];
+  const pts = history.map((d, i) => ({
+    x: pad + (i / (MAX_H - 1)) * cw,
+    y: pad + (1 - d.composite/100) * ch,
+  }));
+
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.strokeStyle = tint + 'aa'; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
+
+  ctx.lineTo(pts[pts.length-1].x, pad+ch);
+  ctx.lineTo(pts[0].x, pad+ch); ctx.closePath();
+  ctx.fillStyle = tint + '18'; ctx.fill();
+}
+
+// ── Prices ────────────────────────────────────────────────────────
+function renderPrices(prices) {
+  const n = prices.length;
+  document.getElementById('price-badge').textContent = n + ' asset' + (n===1?'':'s');
+  document.getElementById('s-coins').textContent  = n || '—';
+  document.getElementById('bb-coins').textContent = n || '—';
+
+  const tbody = document.getElementById('prices-tbody');
+  if (!n) { tbody.innerHTML = '<tr><td colspan="4" class="empty">NO DATA</td></tr>'; return; }
+
+  tbody.innerHTML = prices.map(p => {
+    const dev = p.deviationBps ?? 0, abs = Math.abs(dev);
+    const dstr = dev===0 ? '±0' : (dev>0?'+':'')+dev;
+    const dcls = dev>0 ? 'color:#22c55e' : dev<0 ? 'color:#ef4444' : 'color:#444';
+    const [pbg,pfg,pbd,plbl] =
+      abs<20  ? ['rgba(34,197,94,.10)','#86efac','rgba(34,197,94,.25)','NORMAL']
+    : abs<50  ? ['rgba(234,179,8,.10)', '#fde047','rgba(234,179,8,.25)', 'WATCH']
+    :           ['rgba(239,68,68,.10)', '#fca5a5','rgba(239,68,68,.25)', 'ALERT'];
+    return `<tr>
+      <td style="font-family:'Courier New',monospace;font-weight:700">${esc(p.asset)}</td>
+      <td style="font-family:'Courier New',monospace">$${Number(p.price).toFixed(6)}</td>
+      <td style="font-family:'Courier New',monospace;${dcls}">${dstr}</td>
+      <td><span class="pill" style="background:${pbg};color:${pfg};border:1px solid ${pbd}">${plbl}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Alerts ────────────────────────────────────────────────────────
+function renderAlerts(alerts) {
+  totalAlerts = Math.max(totalAlerts, alerts.length);
+  document.getElementById('alert-count-badge').textContent = alerts.length;
+  document.getElementById('s-alerts').textContent = totalAlerts;
+
+  const el = document.getElementById('alerts-list');
+  if (!alerts.length) {
+    el.innerHTML = '<div class="empty">[ NO ALERTS — MONITORING ACTIVE ]</div>';
+    return;
+  }
+  el.innerHTML = [...alerts].reverse().slice(0,10).map(a => `
+    <div class="arow">
+      <span class="sev sev-${esc(a.data.severity)}">${esc(a.data.severity)}</span>
+      <div class="abody">
+        <div class="arule">${esc(a.data.ruleName)}</div>
+        <div class="amsg">${esc(a.data.message)}</div>
+        <div class="ats">${relTime(a.timestamp)} · ${new Date(a.timestamp).toLocaleTimeString()}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── State ─────────────────────────────────────────────────────────
+function renderState(state) {
+  const protos = new Set((state.recentLiquidations || []).map(l => l.protocol));
+  const n = Math.max(protos.size, 2);
+  document.getElementById('s-protos').textContent  = n;
+  document.getElementById('bb-protos').textContent = n;
+}
+
+// ── Connection ────────────────────────────────────────────────────
+function setConn(ok) {
+  const dot = document.getElementById('live-dot');
+  const txt = document.getElementById('live-txt');
+  dot.className = 'pulse-dot' + (ok ? '' : ' err');
+  txt.textContent = ok ? 'LIVE' : 'DISCONNECTED';
+  txt.parentElement.style.color = ok ? '#22c55e' : '#ef4444';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function relTime(ts) {
+  const s = Math.floor((Date.now()-ts)/1000);
+  if (s<5) return 'just now';
+  if (s<60) return s+'s ago';
+  if (s<3600) return Math.floor(s/60)+'m ago';
+  return Math.floor(s/3600)+'h ago';
+}
+
+function esc(s) {
+  return String(s??'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Polling ───────────────────────────────────────────────────────
+async function pollRisk() {
+  try {
+    const res = await fetch('/api/risk');
+    if (!res.ok) { setConn(true); return; }   // 503 before first snapshot
+    const r = await res.json();
+
+    history.push({
+      ts: Date.now(),
+      composite:         r.composite         ?? 0,
+      pegStress:         r.pegStress          ?? 0,
+      liquidationStress: r.liquidationStress  ?? 0,
+      flowPressure:      r.flowPressure        ?? 0,
+    });
+    if (history.length > MAX_H) history.shift();
+
+    setMainGauge(r.composite ?? 0);
+    setSmallGauge('sg-peg',  'sv-peg',  r.pegStress         ?? 0);
+    setSmallGauge('sg-liq',  'sv-liq',  r.liquidationStress ?? 0);
+    setSmallGauge('sg-flow', 'sv-flow', r.flowPressure       ?? 0);
+    setSmallGauge('sg-conf', 'sv-conf', Math.max(0, 100-(r.composite??0)));
+
+    updateTiers(r);
+    drawHistory();
+    for (let i = 0; i < 4; i++) drawSparkline(i);
+
+    document.getElementById('s-updated').textContent = new Date().toLocaleTimeString();
+    setConn(true);
+  } catch (_) {
+    setConn(false);
+  }
+}
+
+async function pollAlerts() {
+  try {
+    const res = await fetch('/api/alerts?limit=10');
+    if (res.ok) renderAlerts(await res.json());
+  } catch (_) {}
+}
+
+async function pollPrices() {
+  try {
+    const res = await fetch('/api/prices');
+    if (res.ok) renderPrices(await res.json());
+  } catch (_) {}
+}
+
+async function pollState() {
+  try {
+    const res = await fetch('/api/state');
+    if (res.ok) renderState(await res.json());
+  } catch (_) {}
+}
+
+// Initial load — stagger slightly so layout is painted before canvas reads offsetWidth
+setTimeout(() => { pollRisk(); pollAlerts(); pollPrices(); pollState(); }, 80);
+
+setInterval(pollRisk,   3000);
+setInterval(pollAlerts, 3000);
+setInterval(pollPrices, 3000);
+setInterval(pollState,  5000);
+</script>
+</body>
+</html>
