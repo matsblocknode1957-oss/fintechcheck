@@ -10,7 +10,7 @@ import { RiskEngine } from './risk/RiskEngine';
 import { RuleEngine } from './cre/RuleEngine';
 import { createServer } from './api/server';
 
-const PORT = Number(process.env.PORT ?? 3000);
+const PORT = Number(process.env.PORT ?? 8080);
 const CHAIN_ID = 1;  // Ethereum mainnet
 
 async function main(): Promise<void> {
