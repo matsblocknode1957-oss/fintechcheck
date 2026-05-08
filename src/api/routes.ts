@@ -35,6 +35,10 @@ export function buildRouter(store: IStateStore, cre: RuleEngine): Router {
     res.json(store.getRecentLiquidations());
   });
 
+  router.get('/flows', (_req: Request, res: Response) => {
+    res.json(store.getRecentFlows());
+  });
+
   router.get('/alerts', (req: Request, res: Response) => {
     const limit = parseInt(req.query['limit'] as string ?? '50', 10);
     res.json(cre.getAlertHistory(isNaN(limit) ? 50 : limit));

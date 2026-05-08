@@ -264,14 +264,14 @@ export class LiquidLensAdaptor {
       if (from === ZERO_ADDR) {
         // New supply minted (e.g. Circle issuing USDC)
         this.injectMintBurn(
-          { protocol: asset, asset, amount: toUsd(value, token), actor: to, isMint: true },
+          { protocol: asset, asset, amount: toUsd(value, token), actor: to, isMint: true, txHash: log.transactionHash },
           blockNum,
         );
         mintCount++;
       } else if (to === ZERO_ADDR) {
         // Supply burned (e.g. USDC redemption)
         this.injectMintBurn(
-          { protocol: asset, asset, amount: toUsd(value, token), actor: from, isMint: false },
+          { protocol: asset, asset, amount: toUsd(value, token), actor: from, isMint: false, txHash: log.transactionHash },
           blockNum,
         );
         burnCount++;
@@ -281,7 +281,7 @@ export class LiquidLensAdaptor {
         if (usdValue >= WHALE_USD_MIN) {
           const decimals = TOKEN_DECIMALS[token] ?? 18;
           this.injectWhaleTransfer(
-            { asset, from, to, amount: Number(value) / 10 ** decimals, usdValue },
+            { asset, from, to, amount: Number(value) / 10 ** decimals, usdValue, txHash: log.transactionHash },
             blockNum,
           );
           whaleCount++;

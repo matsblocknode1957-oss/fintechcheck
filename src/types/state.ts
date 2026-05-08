@@ -26,6 +26,9 @@ export interface FlowRecord {
   netFlow: number;    // positive = net inflow, negative = net outflow
   usdVolume: number;
   timestamp: number;
+  transferType: 'mint' | 'burn' | 'whale';
+  blockNumber?: number;
+  txHash?: string;
 }
 
 export interface SystemState {
@@ -39,5 +42,6 @@ export interface SystemState {
     flowPressure: number;
     composite: number;
     timestamp: number;
+    perCoin?: Record<string, number>;
   };
 }

@@ -45,6 +45,7 @@ export class RiskEngine {
       flowPressure,
       composite,
       timestamp: Date.now(),
+      perCoin: this.scorePerCoin(),
     };
     this.store.setRiskSnapshot(snapshot);
 
@@ -60,6 +61,14 @@ export class RiskEngine {
   }
 
   // ─── Scorers ────────────────────────────────────────────────────────────────
+
+  private scorePerCoin(): Record<string, number> {
+    const result: Record<string, number> = {};
+    for (const p of this.store.getAllPrices()) {
+      result[p.asset] = Math.min(100, Math.round((Math.abs(p.deviationBps) / 200) * 100));
+    }
+    return result;
+  }
 
   private scorePegStress(): number {
     const prices = this.store.getAllPrices().filter(p => p.peg > 0);

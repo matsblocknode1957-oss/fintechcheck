@@ -33,6 +33,9 @@ export class LiquidationProcessor {
       netFlow,
       usdVolume: Math.abs(d.amount),
       timestamp: event.timestamp,
+      transferType: d.isMint ? 'mint' : 'burn',
+      blockNumber: event.blockNumber,
+      txHash: d.txHash,
     });
   }
 
@@ -43,6 +46,9 @@ export class LiquidationProcessor {
       netFlow: 0,   // transfer is neutral for supply but tracks volume
       usdVolume: d.usdValue,
       timestamp: event.timestamp,
+      transferType: 'whale',
+      blockNumber: event.blockNumber,
+      txHash: d.txHash,
     });
   }
 }

@@ -72,6 +72,7 @@ export interface MintBurnData {
   amount: number;
   actor: string;
   isMint: boolean;
+  txHash?: string;
 }
 
 export interface WhaleTransferData {
@@ -80,6 +81,7 @@ export interface WhaleTransferData {
   to: string;
   amount: number;
   usdValue: number;
+  txHash?: string;
 }
 
 // ─── Internal payloads ────────────────────────────────────────────────────────
@@ -90,6 +92,7 @@ export interface RiskSnapshotData {
   flowPressure: number;        // 0–100
   composite: number;           // weighted composite 0–100
   triggeredRules: string[];
+  perCoin?: Record<string, number>;
 }
 
 export interface CREAlertData {

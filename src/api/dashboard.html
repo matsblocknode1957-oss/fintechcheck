@@ -119,9 +119,14 @@ html,body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui
 .sev-HIGH    {background:rgba(249,115,22,.12);color:#fdba74;border:1px solid rgba(249,115,22,.3)}
 .sev-MEDIUM  {background:rgba(234,179,8,.12) ;color:#fde047;border:1px solid rgba(234,179,8,.3) }
 .sev-LOW     {background:rgba(34,197,94,.12) ;color:#86efac;border:1px solid rgba(34,197,94,.3) }
+.sev-WHALE   {background:rgba(249,115,22,.12);color:#fdba74;border:1px solid rgba(249,115,22,.3)}
+.sev-MINT    {background:rgba(34,197,94,.12) ;color:#86efac;border:1px solid rgba(34,197,94,.3) }
+.sev-BURN    {background:rgba(239,68,68,.12) ;color:#fca5a5;border:1px solid rgba(239,68,68,.3) }
 .abody{flex:1;min-width:0}
 .arule{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.amsg {font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.amsg {font-size:10px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.amsg a{color:#60a5fa;text-decoration:none}
+.amsg a:hover{text-decoration:underline}
 .ats  {font-family:var(--mono);font-size:9px;color:var(--dark);margin-top:3px}
 .empty{text-align:center;padding:38px 13px;color:var(--dark);font-family:var(--mono);font-size:10px;letter-spacing:.1em}
 
@@ -195,8 +200,8 @@ canvas{display:block}
         <span class="badge" id="price-badge" style="background:#111;color:#444;border:1px solid #1a1a1a">—</span>
       </div>
       <table class="ptable">
-        <thead><tr><th>ASSET</th><th>PRICE</th><th>BPS</th><th>STATUS</th></tr></thead>
-        <tbody id="prices-tbody"><tr><td colspan="4" class="empty">LOADING…</td></tr></tbody>
+        <thead><tr><th>ASSET</th><th>PRICE</th><th>BPS</th><th>STATUS</th><th>RISK</th></tr></thead>
+        <tbody id="prices-tbody"><tr><td colspan="5" class="empty">LOADING…</td></tr></tbody>
       </table>
     </div>
 
@@ -416,6 +421,8 @@ const SG_CIRC = 238.761, SG_ARC = 179.071;
 // ── State ─────────────────────────────────────────────────────────
 let history = [];   // {ts,composite,pegStress,liquidationStress,flowPressure}
 let totalAlerts = 0;
+let perCoin = {};   // {ASSET: score 0-100} from /api/risk
+let flowEvents = []; // recent flow records from /api/flows
 
 // ── Color/level helpers ───────────────────────────────────────────
 function col(v) {
@@ -605,7 +612,7 @@ function renderPrices(prices) {
   document.getElementById('bb-coins').textContent = n || '—';
 
   const tbody = document.getElementById('prices-tbody');
-  if (!n) { tbody.innerHTML = '<tr><td colspan="4" class="empty">NO DATA</td></tr>'; return; }
+  if (!n) { tbody.innerHTML = '<tr><td colspan="5" class="empty">NO DATA</td></tr>'; return; }
 
   tbody.innerHTML = prices.map(p => {
     const dev = p.deviationBps ?? 0, abs = Math.abs(dev);
@@ -615,27 +622,56 @@ function renderPrices(prices) {
       abs<20  ? ['rgba(34,197,94,.10)','#86efac','rgba(34,197,94,.25)','NORMAL']
     : abs<50  ? ['rgba(234,179,8,.10)', '#fde047','rgba(234,179,8,.25)', 'WATCH']
     :           ['rgba(239,68,68,.10)', '#fca5a5','rgba(239,68,68,.25)', 'ALERT'];
+    const risk = perCoin[p.asset] ?? 0;
+    const [rfg] = risk < 20 ? ['#86efac'] : risk < 50 ? ['#fde047'] : ['#fca5a5'];
     return `<tr>
       <td style="font-family:'Courier New',monospace;font-weight:700">${esc(p.asset)}</td>
       <td style="font-family:'Courier New',monospace">$${Number(p.price).toFixed(6)}</td>
       <td style="font-family:'Courier New',monospace;${dcls}">${dstr}</td>
       <td><span class="pill" style="background:${pbg};color:${pfg};border:1px solid ${pbd}">${plbl}</span></td>
+      <td style="font-family:'Courier New',monospace;font-weight:700;color:${rfg}">${risk}</td>
     </tr>`;
   }).join('');
 }
 
 // ── Alerts ────────────────────────────────────────────────────────
+function fmtUSD(n) {
+  return '$' + Math.round(n).toLocaleString('en-US');
+}
+
+function flowRow(f) {
+  const typeLabel = f.transferType === 'whale' ? 'Whale Transfer'
+                  : f.transferType === 'mint'  ? 'Mint'
+                  : 'Burn';
+  const sevCls = f.transferType === 'whale' ? 'WHALE'
+               : f.transferType === 'mint'  ? 'MINT'
+               : 'BURN';
+  const amount = fmtUSD(f.usdVolume);
+  const ref = f.txHash
+    ? `<a href="https://etherscan.io/tx/${esc(f.txHash)}" target="_blank" rel="noopener">View on Etherscan →</a>`
+    : (f.blockNumber ? `Block ${f.blockNumber}` : '');
+  const detail = f.blockNumber
+    ? `${amount} — Block ${f.blockNumber}${f.txHash ? ' — ' + ref : ''}`
+    : `${amount}${ref ? ' — ' + ref : ''}`;
+  return `
+    <div class="arow">
+      <span class="sev sev-${sevCls}">${sevCls}</span>
+      <div class="abody">
+        <div class="arule">${esc(f.asset)} ${esc(typeLabel)}</div>
+        <div class="amsg">${detail}</div>
+        <div class="ats">${relTime(f.timestamp)} · ${new Date(f.timestamp).toLocaleTimeString()}</div>
+      </div>
+    </div>`;
+}
+
 function renderAlerts(alerts) {
-  totalAlerts = Math.max(totalAlerts, alerts.length);
-  document.getElementById('alert-count-badge').textContent = alerts.length;
+  totalAlerts = Math.max(totalAlerts, alerts.length + flowEvents.length);
+  document.getElementById('alert-count-badge').textContent = alerts.length + flowEvents.length;
   document.getElementById('s-alerts').textContent = totalAlerts;
 
   const el = document.getElementById('alerts-list');
-  if (!alerts.length) {
-    el.innerHTML = '<div class="empty">[ NO ALERTS — MONITORING ACTIVE ]</div>';
-    return;
-  }
-  el.innerHTML = [...alerts].reverse().slice(0,10).map(a => `
+
+  const creRows = [...alerts].reverse().slice(0, 5).map(a => `
     <div class="arow">
       <span class="sev sev-${esc(a.data.severity)}">${esc(a.data.severity)}</span>
       <div class="abody">
@@ -643,7 +679,21 @@ function renderAlerts(alerts) {
         <div class="amsg">${esc(a.data.message)}</div>
         <div class="ats">${relTime(a.timestamp)} · ${new Date(a.timestamp).toLocaleTimeString()}</div>
       </div>
-    </div>`).join('');
+    </div>`);
+
+  const flowRows = [...flowEvents].reverse().slice(0, 5).map(flowRow);
+
+  // Merge and sort combined entries by timestamp descending
+  const combined = [
+    ...[...alerts].reverse().slice(0,5).map(a => ({ ts: a.timestamp, html: creRows.shift() })),
+    ...[...flowEvents].reverse().slice(0,5).map(f => ({ ts: f.timestamp, html: flowRows.shift() })),
+  ].sort((a, b) => b.ts - a.ts).slice(0, 10);
+
+  if (!combined.length) {
+    el.innerHTML = '<div class="empty">[ NO ALERTS — MONITORING ACTIVE ]</div>';
+    return;
+  }
+  el.innerHTML = combined.map(e => e.html).join('');
 }
 
 // ── State ─────────────────────────────────────────────────────────
@@ -700,6 +750,8 @@ async function pollRisk() {
     setSmallGauge('sg-flow', 'sv-flow', r.flowPressure       ?? 0);
     setSmallGauge('sg-conf', 'sv-conf', Math.max(0, 100-(r.composite??0)));
 
+    perCoin = r.perCoin ?? {};
+
     updateTiers(r);
     drawHistory();
     for (let i = 0; i < 4; i++) drawSparkline(i);
@@ -718,6 +770,13 @@ async function pollAlerts() {
   } catch (_) {}
 }
 
+async function pollFlows() {
+  try {
+    const res = await fetch('/api/flows');
+    if (res.ok) flowEvents = await res.json();
+  } catch (_) {}
+}
+
 async function pollPrices() {
   try {
     const res = await fetch('/api/prices');
@@ -733,9 +792,10 @@ async function pollState() {
 }
 
 // Initial load — stagger slightly so layout is painted before canvas reads offsetWidth
-setTimeout(() => { pollRisk(); pollAlerts(); pollPrices(); pollState(); }, 80);
+setTimeout(() => { pollRisk(); pollFlows(); pollAlerts(); pollPrices(); pollState(); }, 80);
 
 setInterval(pollRisk,   3000);
+setInterval(pollFlows,  3000);
 setInterval(pollAlerts, 3000);
 setInterval(pollPrices, 3000);
 setInterval(pollState,  5000);
