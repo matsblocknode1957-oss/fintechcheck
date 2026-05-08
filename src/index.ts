@@ -55,10 +55,7 @@ async function main(): Promise<void> {
   porAdaptor.start();
   liquidLens.start();
 
-  // 5. Simulate some on-chain events for demo
-  simulateOnChainEvents(liquidLens);
-
-  // 6. API
+  // 5. API
   const app = createServer(store, ruleEngine);
   app.listen(PORT, () => {
     console.log(`[API] Listening on http://localhost:${PORT}/api`);
@@ -79,6 +76,7 @@ async function main(): Promise<void> {
     console.log('\nShutting down...');
     pegCheck.stop();
     porAdaptor.stop();
+    liquidLens.stop();
     riskEngine.stop();
     process.exit(0);
   });
@@ -93,33 +91,6 @@ function simulatePoR(ratio: number): () => Promise<{ reportedReserves: bigint; c
   });
 }
 
-function simulateOnChainEvents(lens: LiquidLensAdaptor): void {
-  // Fire a simulated liquidation after 8s
-  setTimeout(() => {
-    lens.injectLiquidation({
-      protocol: 'Aave-v3',
-      borrower: '0xDeadBeef',
-      collateralAsset: 'ETH',
-      debtAsset: 'USDC',
-      collateralSeized: 10.5,
-      debtRepaid: 15_000,
-      healthFactorBefore: 0.95,
-    });
-    console.log('[Sim] Injected liquidation event');
-  }, 8_000);
-
-  // Fire a large burn (outflow) after 15s
-  setTimeout(() => {
-    lens.injectMintBurn({
-      protocol: 'MakerDAO',
-      asset: 'DAI',
-      amount: 8_000_000,
-      actor: '0xWhale',
-      isMint: false,
-    });
-    console.log('[Sim] Injected large DAI burn (outflow)');
-  }, 15_000);
-}
 
 main().catch((err) => {
   console.error('Fatal error:', err);
