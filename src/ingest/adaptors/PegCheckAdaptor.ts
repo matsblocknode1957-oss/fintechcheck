@@ -2,55 +2,82 @@ import { v4 as uuidv4 } from 'uuid';
 import { FintechEvent, PriceUpdateData } from '../../types';
 import { eventBus } from '../../bus/EventBus';
 
-/**
- * PegCheck adaptor — ingests multi-source price feeds.
- * In production: replace the polling interval with WebSocket subscriptions
- * to Pyth, Chainlink price feeds, or a DEX TWAP oracle.
- */
-export interface PriceFeedConfig {
-  asset: string;
-  priceFeed: string;
-  chainId: number;
-  fetchPrice: () => Promise<number>;
+const API_URL = 'https://pegcheck.uk/api/v1/coins';
+
+interface PegCheckCoin {
+  slug: string;
+  price: number;
+  deviation: number;    // % distance from peg, e.g. -0.0156 means -0.0156%
+  status: string;       // "stable" | "watch" | "alert"
+  updated_at: string;   // ISO 8601
+  chainlink_por: { reserves: number; updated_at: string } | null;
 }
 
+interface PegCheckResponse {
+  coins: PegCheckCoin[];
+  total: number;
+}
+
+const STATUS_CONFIDENCE: Record<string, number> = {
+  stable: 0.99,
+  watch:  0.80,
+  alert:  0.50,
+};
+
 export class PegCheckAdaptor {
-  private timers: NodeJS.Timeout[] = [];
+  private timer?: NodeJS.Timeout;
 
   constructor(
-    private feeds: PriceFeedConfig[],
-    private intervalMs = 5_000,
+    private readonly apiKey: string,
+    private readonly chainId: number,
+    private readonly intervalMs = 30_000,
   ) {}
 
   start(): void {
-    for (const feed of this.feeds) {
-      const timer = setInterval(() => this.poll(feed), this.intervalMs);
-      this.timers.push(timer);
-      // Immediate first tick
-      this.poll(feed).catch(console.error);
-    }
-    console.log(`[PegCheck] Started ${this.feeds.length} price feed(s)`);
+    this.poll().catch((err) => console.error('[PegCheck] Initial poll failed:', err));
+    this.timer = setInterval(
+      () => this.poll().catch((err) => console.error('[PegCheck] Poll failed:', err)),
+      this.intervalMs,
+    );
+    console.log(`[PegCheck] Polling ${API_URL} every ${this.intervalMs / 1000}s`);
   }
 
   stop(): void {
-    this.timers.forEach(clearInterval);
-    this.timers = [];
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = undefined;
+    }
   }
 
-  private async poll(feed: PriceFeedConfig): Promise<void> {
-    try {
-      const price = await feed.fetchPrice();
+  private async poll(): Promise<void> {
+    const res = await fetch(API_URL, {
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+    });
+
+    if (!res.ok) {
+      console.error(`[PegCheck] HTTP ${res.status} ${res.statusText}`);
+      return;
+    }
+
+    const body = (await res.json()) as PegCheckResponse;
+
+    for (const coin of body.coins) {
       const event: FintechEvent<PriceUpdateData> = {
         id: uuidv4(),
         type: 'PRICE_UPDATE',
         source: 'PegCheck',
-        chainId: feed.chainId,
-        timestamp: Date.now(),
-        data: { asset: feed.asset, priceFeed: feed.priceFeed, price },
+        chainId: this.chainId,
+        timestamp: new Date(coin.updated_at).getTime(),
+        data: {
+          asset:     coin.slug.toUpperCase(),
+          priceFeed: `pegcheck.uk/${coin.slug}`,
+          price:     coin.price,
+          confidence: STATUS_CONFIDENCE[coin.status] ?? 0.50,
+        },
       };
       eventBus.publish(event);
-    } catch (err) {
-      console.error(`[PegCheck] Failed to poll ${feed.asset}:`, err);
     }
+
+    console.log(`[PegCheck] Ingested ${body.coins.length} coin(s)`);
   }
 }

@@ -32,27 +32,9 @@ async function main(): Promise<void> {
 
   // 4. Ingestion adaptors
   const pegCheck = new PegCheckAdaptor(
-    [
-      {
-        asset: 'USDC',
-        priceFeed: 'pyth/USDC-USD',
-        chainId: CHAIN_ID,
-        fetchPrice: simulatePrice('USDC', 1.0, 0.005),
-      },
-      {
-        asset: 'DAI',
-        priceFeed: 'pyth/DAI-USD',
-        chainId: CHAIN_ID,
-        fetchPrice: simulatePrice('DAI', 1.0, 0.008),
-      },
-      {
-        asset: 'FRAX',
-        priceFeed: 'pyth/FRAX-USD',
-        chainId: CHAIN_ID,
-        fetchPrice: simulatePrice('FRAX', 1.0, 0.015),
-      },
-    ],
-    5_000,
+    process.env.PEGCHECK_API_KEY ?? 'pk_live_test123',
+    CHAIN_ID,
+    30_000,
   );
 
   const porAdaptor = new ChainlinkPoRAdaptor(
@@ -102,14 +84,7 @@ async function main(): Promise<void> {
   });
 }
 
-// ─── Simulation helpers (replace with real feeds in production) ───────────────
-
-function simulatePrice(asset: string, peg: number, volatility: number): () => Promise<number> {
-  return async () => {
-    const drift = (Math.random() - 0.5) * 2 * volatility;
-    return parseFloat((peg + drift).toFixed(6));
-  };
-}
+// ─── Simulation helpers ───────────────────────────────────────────────────────
 
 function simulatePoR(ratio: number): () => Promise<{ reportedReserves: bigint; circulatingSupply: bigint }> {
   return async () => ({

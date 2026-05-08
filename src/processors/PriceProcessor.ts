@@ -8,11 +8,19 @@ import { v4 as uuidv4 } from 'uuid';
  * if the asset has a known peg target.
  */
 const PEG_TARGETS: Record<string, number> = {
-  USDC: 1.0,
-  USDT: 1.0,
-  DAI: 1.0,
+  // Legacy / simulated
+  DAI:  1.0,
   FRAX: 1.0,
   LUSD: 1.0,
+  // Live — pegcheck.uk/api/v1/coins
+  USDT:   1.0,
+  USDC:   1.0,
+  USDS:   1.0,
+  ETHENA: 1.0,
+  PYUSD:  1.0,
+  FDUSD:  1.0,
+  RLUSD:  1.0,
+  TUSD:   1.0,
 };
 
 export class PriceProcessor {
