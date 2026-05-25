@@ -4,7 +4,7 @@
   "description": "Real-time DeFi systemic risk engine",
   "main": "dist/index.js",
   "scripts": {
-    "build": "node ./node_modules/typescript/bin/tsc && node -e \"const fs=require('fs');fs.mkdirSync('dist/api',{recursive:true});fs.copyFileSync('src/api/dashboard.html','dist/api/dashboard.html');fs.copyFileSync('src/api/index.html','dist/api/index.html')\"",
+    "build": "node ./node_modules/typescript/bin/tsc && node scripts/copy-assets.js",
     "dev": "ts-node src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
