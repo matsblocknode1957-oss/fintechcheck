@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FintechCheck — Real-time DeFi Risk Infrastructure</title>
+<meta name="description" content="Real-time DeFi risk infrastructure. Built for protocols, traders, and developers.">
+<meta property="og:title" content="FintechCheck — Real-time DeFi Risk Infrastructure">
+<meta property="og:description" content="Stablecoin depeg monitoring, liquidation alerts, cross-chain protection, and correlated risk scoring.">
+<meta property="og:url" content="https://fintechcheck.uk">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050505;--card:#0a0a0a;--card2:#0e0e0e;--bd:#1c1c1c;--bd2:#262626;
+  --txt:#e8e8e8;--dim:#666;--dimmer:#3a3a3a;
+  --green:#22c55e;--blue:#3b82f6;--orange:#f97316;--purple:#a78bfa;
+  --cl:#375bd2;
+  --mono:'Courier New',Courier,monospace;
+}
+html,body{
+  background:var(--bg);color:var(--txt);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  font-size:15px;line-height:1.6;min-height:100%;
+  -webkit-font-smoothing:antialiased;
+}
+body{
+  background-image:
+    linear-gradient(rgba(255,255,255,.016) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.016) 1px,transparent 1px);
+  background-size:64px 64px;
+  background-color:var(--bg);
+}
+a{color:inherit;text-decoration:none}
+
+/* ── NAV ──────────────────────────────────────── */
+.nav{
+  position:sticky;top:0;z-index:200;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 40px;height:58px;
+  background:rgba(5,5,5,.9);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--bd);
+}
+.nav-logo{
+  font-family:var(--mono);font-size:13px;font-weight:700;
+  letter-spacing:.1em;color:#fff;
+}
+.nav-logo em{color:var(--green);font-style:normal}
+.nav-links{display:flex;align-items:center;gap:28px;list-style:none}
+.nav-links a{
+  font-size:13px;color:var(--dim);letter-spacing:.02em;
+  transition:color .18s;
+}
+.nav-links a:hover{color:var(--txt)}
+.nav-api{
+  background:var(--green)!important;color:#000!important;
+  padding:6px 18px;border-radius:5px;
+  font-weight:700;font-size:12px;letter-spacing:.05em;
+  transition:opacity .18s!important;
+}
+.nav-api:hover{opacity:.82}
+
+/* ── HERO ─────────────────────────────────────── */
+.hero{
+  position:relative;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;
+  min-height:calc(100vh - 58px);
+  padding:100px 24px 80px;overflow:hidden;
+}
+.hero-orb{
+  position:absolute;width:900px;height:600px;
+  background:radial-gradient(ellipse at center,rgba(34,197,94,.055) 0%,transparent 68%);
+  pointer-events:none;top:50%;left:50%;transform:translate(-50%,-55%);
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.22);
+  border-radius:20px;padding:5px 16px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--green);
+  margin-bottom:32px;
+}
+.live-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--green);
+  animation:ldot 2s ease-in-out infinite;
+}
+@keyframes ldot{
+  0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.55)}
+  50%{box-shadow:0 0 0 5px rgba(34,197,94,0)}
+}
+.hero-logo{
+  font-family:var(--mono);
+  font-size:clamp(40px,8vw,96px);
+  font-weight:700;color:#fff;
+  letter-spacing:-.025em;line-height:1;
+  margin-bottom:6px;
+}
+.hero-logo em{color:var(--green);font-style:normal}
+.hero-tag{
+  font-size:clamp(16px,2.2vw,21px);color:var(--dim);
+  max-width:580px;line-height:1.55;margin-bottom:44px;font-weight:400;
+}
+.hero-tag strong{color:var(--txt);font-weight:500}
+.ctas{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
+.btn-g{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--green);color:#000;
+  padding:13px 30px;border-radius:7px;
+  font-size:14px;font-weight:700;letter-spacing:.04em;
+  transition:transform .15s,box-shadow .2s;
+}
+.btn-g:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(34,197,94,.28)}
+.btn-o{
+  display:inline-flex;align-items:center;gap:7px;
+  background:transparent;color:var(--txt);
+  padding:12px 30px;border-radius:7px;border:1px solid var(--bd2);
+  font-size:14px;font-weight:500;letter-spacing:.04em;
+  transition:border-color .18s,background .18s;
+}
+.btn-o:hover{border-color:var(--dim);background:rgba(255,255,255,.03)}
+
+/* ── STATS BAR ────────────────────────────────── */
+.stats{
+  background:var(--card);
+  border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);
+  display:flex;
+}
+.stat{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:32px 16px;
+  border-right:1px solid var(--bd);
+}
+.stat:last-child{border-right:none}
+.stat-n{
+  font-family:var(--mono);font-size:40px;font-weight:700;
+  line-height:1;margin-bottom:7px;
+}
+.stat-l{
+  font-family:var(--mono);font-size:10px;color:var(--dim);
+  letter-spacing:.18em;text-transform:uppercase;text-align:center;
+}
+
+/* ── PRODUCTS ─────────────────────────────────── */
+.wrap{max-width:1200px;margin:0 auto;padding:88px 40px}
+.section-eye{
+  font-family:var(--mono);font-size:10px;color:var(--dim);
+  letter-spacing:.22em;text-transform:uppercase;margin-bottom:14px;
+}
+.section-h{
+  font-size:clamp(24px,3.5vw,38px);font-weight:700;color:#fff;
+  margin-bottom:52px;
+}
+.pgrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:20px;
+}
+.pc{
+  background:var(--card);border:1px solid var(--bd);border-radius:10px;
+  padding:30px;display:flex;flex-direction:column;
+  transition:border-color .25s,box-shadow .25s,transform .2s;
+}
+.pc:hover{transform:translateY(-3px)}
+.pc-icon{
+  width:42px;height:42px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:19px;margin-bottom:18px;border:1px solid;
+}
+.pc-name{
+  font-family:var(--mono);font-size:19px;font-weight:700;
+  color:#fff;margin-bottom:4px;
+}
+.pc-dom{
+  font-family:var(--mono);font-size:11px;color:var(--dimmer);
+  margin-bottom:14px;
+}
+.pc-desc{
+  font-size:13.5px;color:var(--dim);line-height:1.65;flex:1;
+  margin-bottom:22px;
+}
+.pc-desc strong{color:#bbb;font-weight:500}
+.pc-lnk{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  letter-spacing:.07em;transition:gap .15s;
+}
+.pc-lnk:hover{gap:11px}
+
+/* product accent colours */
+.pc-green{border-color:rgba(34,197,94,.35);box-shadow:0 0 40px rgba(34,197,94,.07)}
+.pc-green .pc-icon{background:rgba(34,197,94,.09);border-color:rgba(34,197,94,.22);color:var(--green)}
+.pc-green .pc-lnk{color:var(--green)}
+
+.pc-blue{border-color:rgba(59,130,246,.35);box-shadow:0 0 40px rgba(59,130,246,.07)}
+.pc-blue .pc-icon{background:rgba(59,130,246,.09);border-color:rgba(59,130,246,.22);color:var(--blue)}
+.pc-blue .pc-lnk{color:var(--blue)}
+
+.pc-orange{border-color:rgba(249,115,22,.35);box-shadow:0 0 40px rgba(249,115,22,.07)}
+.pc-orange .pc-icon{background:rgba(249,115,22,.09);border-color:rgba(249,115,22,.22);color:var(--orange)}
+.pc-orange .pc-lnk{color:var(--orange)}
+
+.pc-purple{border-color:rgba(167,139,250,.35);box-shadow:0 0 40px rgba(167,139,250,.07)}
+.pc-purple .pc-icon{background:rgba(167,139,250,.09);border-color:rgba(167,139,250,.22);color:var(--purple)}
+.pc-purple .pc-lnk{color:var(--purple)}
+
+/* ── CHAINLINK ────────────────────────────────── */
+.cl-section{
+  background:var(--card);
+  border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);
+  padding:72px 40px;text-align:center;
+}
+.cl-eye{
+  font-family:var(--mono);font-size:10px;color:var(--dim);
+  letter-spacing:.22em;text-transform:uppercase;margin-bottom:20px;
+}
+.cl-title{
+  font-size:clamp(22px,3vw,32px);font-weight:700;color:#fff;margin-bottom:8px;
+}
+.cl-sub{
+  font-size:15px;color:var(--dim);margin-bottom:44px;
+}
+.cl-grid{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:12px;
+  max-width:780px;margin:0 auto;
+}
+.cl-badge{
+  display:inline-flex;align-items:center;gap:10px;
+  background:#07091a;border:1px solid rgba(55,91,210,.28);border-radius:8px;
+  padding:13px 22px;font-size:13px;font-weight:600;color:#9db0ea;
+  letter-spacing:.02em;transition:border-color .2s,background .2s,color .2s;
+}
+.cl-badge:hover{
+  border-color:rgba(55,91,210,.55);
+  background:#0c1128;
+  color:#c4d3f5;
+}
+.cl-icon{
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+
+/* ── FOOTER ───────────────────────────────────── */
+footer{
+  background:#000;border-top:1px solid var(--bd);
+  padding:56px 40px 32px;
+}
+.ft-inner{
+  max-width:1200px;margin:0 auto;
+  display:grid;grid-template-columns:2.2fr 1fr 1fr;gap:48px;
+  margin-bottom:44px;
+}
+.ft-brand{
+  font-family:var(--mono);font-size:15px;font-weight:700;
+  color:#fff;letter-spacing:.1em;margin-bottom:14px;
+}
+.ft-brand em{color:var(--green);font-style:normal}
+.ft-bio{font-size:13px;color:var(--dim);line-height:1.7;max-width:340px}
+.ft-col-title{
+  font-family:var(--mono);font-size:10px;font-weight:700;
+  color:var(--dimmer);letter-spacing:.2em;text-transform:uppercase;
+  margin-bottom:16px;
+}
+.ft-links{list-style:none;display:flex;flex-direction:column;gap:10px}
+.ft-links a{
+  font-size:13px;color:var(--dim);transition:color .15s;
+}
+.ft-links a:hover{color:var(--txt)}
+.ft-bottom{
+  max-width:1200px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid var(--bd);padding-top:24px;
+  font-family:var(--mono);font-size:11px;color:var(--dimmer);
+  letter-spacing:.02em;
+}
+
+/* ── RESPONSIVE ───────────────────────────────── */
+@media(max-width:900px){
+  .nav{padding:0 20px}
+  .nav-links{display:none}
+  .wrap{padding:60px 20px}
+  .stats{flex-wrap:wrap}
+  .stat{flex:0 0 50%;border-bottom:1px solid var(--bd)}
+  .ft-inner{grid-template-columns:1fr;gap:32px}
+  .ft-bottom{flex-direction:column;gap:8px;text-align:center}
+  .cl-section{padding:56px 20px}
+}
+@media(max-width:480px){
+  .pgrid{grid-template-columns:1fr}
+  .stat{flex:0 0 100%}
+  .ctas{flex-direction:column;width:100%;max-width:280px}
+  .btn-g,.btn-o{justify-content:center;width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ────────────────────────────────────────────────── -->
+<nav class="nav">
+  <a class="nav-logo" href="/">FINTECH<em>CHECK</em></a>
+  <ul class="nav-links">
+    <li><a href="https://pegcheck.uk">PegCheck</a></li>
+    <li><a href="https://liquidlens.uk">LiquidLens</a></li>
+    <li><a href="https://pegcheck.uk/stableguard">StableGuard</a></li>
+    <li><a href="/dashboard">Dashboard</a></li>
+    <li><a class="nav-api" href="https://pegcheck.uk/developers">API Docs</a></li>
+  </ul>
+</nav>
+
+<!-- ── HERO ───────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-orb"></div>
+
+  <div class="hero-badge">
+    <div class="live-dot"></div>
+    LIVE MONITORING ACTIVE
+  </div>
+
+  <h1 class="hero-logo">FintechCheck<em>.</em></h1>
+
+  <p class="hero-tag">
+    <strong>Real-time DeFi risk infrastructure.</strong><br>
+    Built for protocols, traders, and developers.
+  </p>
+
+  <div class="ctas">
+    <a class="btn-g" href="https://pegcheck.uk">View PegCheck &rarr;</a>
+    <a class="btn-o" href="https://pegcheck.uk/developers">API Documentation &rarr;</a>
+  </div>
+</section>
+
+<!-- ── STATS BAR ───────────────────────────────────────────── -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-n" style="color:#22c55e">19</div>
+    <div class="stat-l">Stablecoins<br>Monitored</div>
+  </div>
+  <div class="stat">
+    <div class="stat-n" style="color:#3b82f6">7</div>
+    <div class="stat-l">Independent<br>Sources</div>
+  </div>
+  <div class="stat">
+    <div class="stat-n" style="color:#a78bfa">164k+</div>
+    <div class="stat-l">Price<br>Records</div>
+  </div>
+  <div class="stat">
+    <div class="stat-n" style="color:#f97316">27+</div>
+    <div class="stat-l">Cross-Chain<br>Messages</div>
+  </div>
+</div>
+
+<!-- ── PRODUCTS ────────────────────────────────────────────── -->
+<div class="wrap">
+
+  <div class="section-eye">Product Suite</div>
+  <h2 class="section-h">Risk infrastructure for the DeFi stack</h2>
+
+  <div class="pgrid">
+
+    <!-- PegCheck -->
+    <div class="pc pc-green">
+      <div class="pc-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <circle cx="10" cy="10" r="7" stroke="#22c55e" stroke-width="1.5"/>
+          <circle cx="10" cy="10" r="3" fill="#22c55e" opacity=".5"/>
+          <circle cx="10" cy="10" r="1.2" fill="#22c55e"/>
+        </svg>
+      </div>
+      <div class="pc-name">PegCheck</div>
+      <div class="pc-dom">pegcheck.uk</div>
+      <p class="pc-desc">
+        <strong>19 stablecoin</strong> depeg monitor with <strong>7 independent price sources.</strong>
+        Real-time alerts when stablecoins break their peg. Basis-point precision scoring across USDC, DAI, FRAX, and more.
+      </p>
+      <a class="pc-lnk" href="https://pegcheck.uk">Visit PegCheck &rarr;</a>
+    </div>
+
+    <!-- LiquidLens -->
+    <div class="pc pc-blue">
+      <div class="pc-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <circle cx="10" cy="9" r="5.5" stroke="#3b82f6" stroke-width="1.5"/>
+          <path d="M14 13.5L17 16.5" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M7.5 9h5M10 6.5v5" stroke="#3b82f6" stroke-width="1.2" stroke-linecap="round" opacity=".6"/>
+        </svg>
+      </div>
+      <div class="pc-name">LiquidLens</div>
+      <div class="pc-dom">liquidlens.uk</div>
+      <p class="pc-desc">
+        DeFi borrow position monitor for <strong>Aave, Compound, and MakerDAO.</strong>
+        Health factor tracking with real-time alerts before liquidation events cascade through the protocol.
+      </p>
+      <a class="pc-lnk" href="https://liquidlens.uk">Visit LiquidLens &rarr;</a>
+    </div>
+
+    <!-- StableGuard -->
+    <div class="pc pc-orange">
+      <div class="pc-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 2.5L16.5 5.5V10C16.5 13.8 10 17.5 10 17.5C10 17.5 3.5 13.8 3.5 10V5.5L10 2.5Z" stroke="#f97316" stroke-width="1.5"/>
+          <path d="M7 10.5l2 2 4-4" stroke="#f97316" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="pc-name">StableGuard</div>
+      <div class="pc-dom">pegcheck.uk/stableguard</div>
+      <p class="pc-desc">
+        Autonomous <strong>cross-chain depeg protection.</strong> Powered by <strong>Chainlink CCIP.</strong>
+        Self-executes protective actions across chains when depeg risk thresholds are breached.
+      </p>
+      <a class="pc-lnk" href="https://pegcheck.uk/stableguard">Visit StableGuard &rarr;</a>
+    </div>
+
+    <!-- FintechCheck Engine -->
+    <div class="pc pc-purple">
+      <div class="pc-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 2l2.5 1.5v3L10 8 7.5 6.5v-3L10 2z" stroke="#a78bfa" stroke-width="1.3"/>
+          <path d="M15 7l2.5 1.5v3L15 13l-2.5-1.5v-3L15 7z" stroke="#a78bfa" stroke-width="1.3"/>
+          <path d="M5 7l2.5 1.5v3L5 13l-2.5-1.5v-3L5 7z" stroke="#a78bfa" stroke-width="1.3"/>
+          <path d="M10 8v2M12.5 9H7.5" stroke="#a78bfa" stroke-width="1" stroke-linecap="round" opacity=".5"/>
+        </svg>
+      </div>
+      <div class="pc-name">Engine</div>
+      <div class="pc-dom">fintechcheck.uk/dashboard</div>
+      <p class="pc-desc">
+        <strong>Correlated risk engine.</strong> Whale transfer tracking, mint/burn flow analysis,
+        and real-time alert feed. CRE composite scoring synthesises signals across all protocols.
+      </p>
+      <a class="pc-lnk" href="/dashboard">Open Dashboard &rarr;</a>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── CHAINLINK ────────────────────────────────────────────── -->
+<div class="cl-section">
+  <div class="cl-eye">Infrastructure</div>
+  <h2 class="cl-title">Powered by Chainlink</h2>
+  <p class="cl-sub">Enterprise-grade oracle services across every product in the FintechCheck suite</p>
+
+  <div class="cl-grid">
+
+    <!-- Data Feeds -->
+    <div class="cl-badge">
+      <span class="cl-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M11 3L3 7v8l8 4 8-4V7l-8-4z" stroke="#375bd2" stroke-width="1.4" fill="rgba(55,91,210,.12)"/>
+          <path d="M11 3v16M3 7l8 4 8-4" stroke="#375bd2" stroke-width="1.4"/>
+        </svg>
+      </span>
+      Data Feeds
+    </div>
+
+    <!-- CCIP -->
+    <div class="cl-badge">
+      <span class="cl-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <circle cx="4.5" cy="11" r="3" stroke="#375bd2" stroke-width="1.4" fill="rgba(55,91,210,.12)"/>
+          <circle cx="17.5" cy="11" r="3" stroke="#375bd2" stroke-width="1.4" fill="rgba(55,91,210,.12)"/>
+          <path d="M7.5 11h7" stroke="#375bd2" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M12 8.5L14.5 11 12 13.5" stroke="#375bd2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      CCIP
+    </div>
+
+    <!-- Automation -->
+    <div class="cl-badge">
+      <span class="cl-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <circle cx="11" cy="11" r="7.5" stroke="#375bd2" stroke-width="1.4" fill="rgba(55,91,210,.12)"/>
+          <path d="M11 7v4.5l3 1.5" stroke="#375bd2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      Automation
+    </div>
+
+    <!-- Proof of Reserve -->
+    <div class="cl-badge">
+      <span class="cl-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M11 2.5L18 6v5.5C18 15.5 11 19.5 11 19.5S4 15.5 4 11.5V6l7-3.5z" stroke="#375bd2" stroke-width="1.4" fill="rgba(55,91,210,.12)"/>
+          <path d="M7.5 11.5l2.5 2.5 5-5" stroke="#375bd2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      Proof of Reserve
+    </div>
+
+    <!-- Functions -->
+    <div class="cl-badge">
+      <span class="cl-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="3" y="3" width="16" height="16" rx="3" stroke="#375bd2" stroke-width="1.4" fill="rgba(55,91,210,.12)"/>
+          <path d="M7 11c0-2 1.5-3.5 3.5-3.5S14 8.5 14 10" stroke="#375bd2" stroke-width="1.3" stroke-linecap="round"/>
+          <path d="M7 15l2-4M13 15l-2-4" stroke="#375bd2" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </span>
+      Functions
+    </div>
+
+  </div>
+</div>
+
+<!-- ── FOOTER ───────────────────────────────────────────────── -->
+<footer>
+  <div class="ft-inner">
+
+    <div>
+      <div class="ft-brand">FINTECH<em>CHECK</em></div>
+      <p class="ft-bio">
+        Real-time DeFi risk infrastructure — stablecoin depeg monitoring,
+        liquidation alerts, autonomous cross-chain protection, and correlated
+        risk scoring. Built by a solo indie founder in Yorkshire, UK.
+      </p>
+    </div>
+
+    <div>
+      <div class="ft-col-title">Products</div>
+      <ul class="ft-links">
+        <li><a href="https://pegcheck.uk">PegCheck</a></li>
+        <li><a href="https://liquidlens.uk">LiquidLens</a></li>
+        <li><a href="https://pegcheck.uk/stableguard">StableGuard</a></li>
+        <li><a href="/dashboard">CRE Dashboard</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <div class="ft-col-title">Developers</div>
+      <ul class="ft-links">
+        <li><a href="https://pegcheck.uk/developers">API Documentation</a></li>
+        <li><a href="/api/health">API Status</a></li>
+        <li><a href="/dashboard">Live Dashboard</a></li>
+        <li><a href="https://fintechcheck.uk">fintechcheck.uk</a></li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="ft-bottom">
+    <span>&copy; 2025 fintechcheck.uk &mdash; Built in Yorkshire, UK</span>
+    <span>All data provided for informational purposes only</span>
+  </div>
+</footer>
+
+</body>
+</html>

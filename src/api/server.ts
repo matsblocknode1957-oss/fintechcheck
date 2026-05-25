@@ -8,6 +8,9 @@ export function createServer(store: IStateStore, cre: RuleEngine): express.Appli
   const app = express();
   app.use(express.json());
   app.use('/api', buildRouter(store, cre));
+  app.get('/', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+  });
   app.get('/dashboard', (_req, res) => {
     res.sendFile(path.join(__dirname, 'dashboard.html'));
   });
