@@ -432,6 +432,13 @@ function col(v) {
   return '#22c55e';
 }
 
+// Inverted scale for confidence: high value = good = green
+function colConf(v) {
+  if (v >= 80) return '#22c55e';
+  if (v >= 50) return '#eab308';
+  return '#ef4444';
+}
+
 const LEVELS = [
   { label:'LOW',      tierIdx:0, col:'#22c55e', bg:'rgba(34,197,94,.12)',  bd:'rgba(34,197,94,.28)'  },
   { label:'WATCH',    tierIdx:1, col:'#eab308', bg:'rgba(234,179,8,.12)',  bd:'rgba(234,179,8,.28)'  },
@@ -472,8 +479,8 @@ function setMainGauge(v) {
 }
 
 // ── Small gauges ──────────────────────────────────────────────────
-function setSmallGauge(id_arc, id_txt, v) {
-  const c = col(v);
+function setSmallGauge(id_arc, id_txt, v, colorFn) {
+  const c = (colorFn ?? col)(v);
   const f = (SG_ARC * v / 100).toFixed(2);
   document.getElementById(id_arc).setAttribute('stroke-dasharray', `${f} ${(SG_CIRC - f).toFixed(2)}`);
   document.getElementById(id_arc).setAttribute('stroke', c);
@@ -748,7 +755,7 @@ async function pollRisk() {
     setSmallGauge('sg-peg',  'sv-peg',  r.pegStress         ?? 0);
     setSmallGauge('sg-liq',  'sv-liq',  r.liquidationStress ?? 0);
     setSmallGauge('sg-flow', 'sv-flow', r.flowPressure       ?? 0);
-    setSmallGauge('sg-conf', 'sv-conf', Math.max(0, 100-(r.composite??0)));
+    setSmallGauge('sg-conf', 'sv-conf', Math.max(0, 100-(r.composite??0)), colConf);
 
     perCoin = r.perCoin ?? {};
 

@@ -5,6 +5,13 @@ import { eventBus } from '../bus/EventBus';
 
 const SCORE_INTERVAL_MS = 10_000;
 
+// Coins with a wider acceptable trading range before contributing to peg stress.
+// Deviation within the threshold is considered normal and ignored by the scorer.
+const PEG_THRESHOLDS: Record<string, number> = {
+  LUSD:  50,   // algorithmic; routinely trades ±50 bps
+  MKUSD: 50,   // Prisma mkUSD; same operating tolerance
+};
+
 /**
  * Risk scoring engine — runs on a fixed interval and after key events.
  * Emits RISK_SNAPSHOT events that the CRE rule engine consumes.
@@ -62,10 +69,16 @@ export class RiskEngine {
 
   // ─── Scorers ────────────────────────────────────────────────────────────────
 
+  private effectiveDev(asset: string, deviationBps: number): number {
+    const threshold = PEG_THRESHOLDS[asset] ?? 0;
+    return Math.max(0, Math.abs(deviationBps) - threshold);
+  }
+
   private scorePerCoin(): Record<string, number> {
     const result: Record<string, number> = {};
     for (const p of this.store.getAllPrices()) {
-      result[p.asset] = Math.min(100, Math.round((Math.abs(p.deviationBps) / 200) * 100));
+      if (p.peg === 0) continue;
+      result[p.asset] = Math.min(100, Math.round((this.effectiveDev(p.asset, p.deviationBps) / 200) * 100));
     }
     return result;
   }
@@ -74,9 +87,10 @@ export class RiskEngine {
     const prices = this.store.getAllPrices().filter(p => p.peg > 0);
     if (prices.length === 0) return 0;
 
-    // Max absolute deviation in bps across all pegged assets, capped at 200bps = 100 score
-    const maxDevBps = Math.max(...prices.map(p => Math.abs(p.deviationBps)));
-    return Math.min(100, Math.round((maxDevBps / 200) * 100));
+    // Max effective deviation across all pegged assets; 200 bps excess = 100 score.
+    // Per-coin thresholds (e.g. LUSD ±50 bps) are subtracted before scoring.
+    const maxEff = Math.max(...prices.map(p => this.effectiveDev(p.asset, p.deviationBps)));
+    return Math.min(100, Math.round((maxEff / 200) * 100));
   }
 
   private scoreLiquidationStress(): number {

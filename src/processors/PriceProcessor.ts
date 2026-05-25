@@ -8,19 +8,27 @@ import { v4 as uuidv4 } from 'uuid';
  * if the asset has a known peg target.
  */
 const PEG_TARGETS: Record<string, number> = {
-  // Legacy / simulated
-  DAI:  1.0,
-  FRAX: 1.0,
-  LUSD: 1.0,
-  // Live — pegcheck.uk/api/v1/coins
+  // USD-pegged — 1.0
+  DAI:    1.0,
+  FRAX:   1.0,
+  LUSD:   1.0,
   USDT:   1.0,
   USDC:   1.0,
   USDS:   1.0,
-  ETHENA: 1.0,
+  USDE:   1.0,   // Ethena USDe
+  ETHENA: 1.0,   // alternate slug used by some feeds
   PYUSD:  1.0,
   FDUSD:  1.0,
   RLUSD:  1.0,
   TUSD:   1.0,
+  MKUSD:  1.0,   // Prisma mkUSD
+  CRVUSD: 1.0,   // Curve crvUSD
+  USDP:   1.0,   // Pax Dollar
+  GUSD:   1.0,   // Gemini Dollar
+  GHO:    1.0,   // Aave GHO
+  DOLA:   1.0,   // Inverse Finance DOLA
+  // EUR-pegged — target moves with EUR/USD; 1.13 is the reference used by PegCheck
+  EURC:   1.13,
 };
 
 export class PriceProcessor {
