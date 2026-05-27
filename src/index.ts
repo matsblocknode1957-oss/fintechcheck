@@ -1,4 +1,4 @@
-// v0.1.3 — EURC runtime guard, per-rule CRE cooldowns (Critical Peg Stress 10min)
+// v0.1.4 — nixpacks.toml + railway.json: tsc now runs in build phase only
 import { InMemoryStateStore } from './state/StateStore';
 import { eventBus } from './bus/EventBus';
 import { PriceProcessor } from './processors/PriceProcessor';
