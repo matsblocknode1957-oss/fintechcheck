@@ -5,15 +5,40 @@ import { eventBus } from '../bus/EventBus';
 
 const SCORE_INTERVAL_MS = 10_000;
 
-// Coins with a wider acceptable trading range before contributing to peg stress.
-// Deviation within the threshold is considered normal and ignored by the scorer.
-// Bps to subtract before a coin contributes to peg stress.
-// LUSD routinely trades ~+29 bps above peg; MKUSD ~-40 bps.
-// ±60 bps is the normal band; only excess beyond that drives the score.
+// Per-coin thresholds — bps subtracted before a coin contributes to peg stress.
+// LUSD/MKUSD have wider operating bands; only excess beyond ±60 bps drives the score.
 const PEG_THRESHOLDS: Record<string, number> = {
   LUSD:  60,
   MKUSD: 60,
 };
+
+// Approximate market caps in $M (order of magnitude, not real-time).
+// Used to weight peg stress: USDT/USDC depegging matters far more than ALUSD.
+const MARKET_CAPS: Record<string, number> = {
+  USDT:   140_000,
+  USDC:    60_000,
+  USDS:     8_000,
+  ETHENA:   5_000,
+  PYUSD:      700,
+  FDUSD:    2_000,
+  RLUSD:      300,
+  TUSD:       400,
+  FRAX:       500,
+  GHO:        200,
+  CRVUSD:     800,
+  LUSD:       300,
+  USDP:       100,
+  USDD:       700,
+  MKUSD:       50,
+  EURC:       400,
+  DOLA:        80,
+  ALUSD:       30,
+  BOLD:        20,
+};
+
+const TOTAL_MARKET_CAP = Object.values(MARKET_CAPS).reduce((s, v) => s + v, 0);
+// 200 bps effective deviation = full contribution from a coin toward peg stress
+const MAX_DEV_BPS = 200;
 
 /**
  * Risk scoring engine — runs on a fixed interval and after key events.
@@ -120,10 +145,17 @@ export class RiskEngine {
     const prices = this.store.getAllPrices().filter(p => p.peg > 0);
     if (prices.length === 0) return 0;
 
-    // Max effective deviation across all pegged assets; 200 bps excess = 100 score.
-    // Per-coin thresholds (e.g. LUSD ±50 bps) are subtracted before scoring.
-    const maxEff = Math.max(...prices.map(p => this.effectiveDev(p.asset, p.deviationBps)));
-    return Math.min(100, Math.round((maxEff / 200) * 100));
+    // Market-cap-weighted peg stress.
+    // Each coin contributes: (effectiveDev / MAX_DEV_BPS) * (marketCap / totalMarketCap) * 100
+    // Coins not in MARKET_CAPS get a 1 $M weight (negligible).
+    // Sum of all weights = 1, so the result is naturally 0–100.
+    let weighted = 0;
+    for (const p of prices) {
+      const mcap = MARKET_CAPS[p.asset] ?? 1;
+      const normalizedDev = Math.min(this.effectiveDev(p.asset, p.deviationBps) / MAX_DEV_BPS, 1);
+      weighted += normalizedDev * (mcap / TOTAL_MARKET_CAP) * 100;
+    }
+    return Math.min(100, Math.round(weighted));
   }
 
   private scoreLiquidationStress(): number {
