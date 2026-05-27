@@ -152,6 +152,41 @@ function parseTransferLog(log: EthLog): ParsedTransfer | null {
   }
 }
 
+// ── Supabase write ────────────────────────────────────────────────────────────
+
+const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+
+async function writeWhaleToSupabase(
+  slug: string, amount: number, txHash: string, wallet: string,
+): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/large_transactions?on_conflict=tx_hash`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer':        'resolution=ignore-duplicates',
+      },
+      body: JSON.stringify({
+        slug,
+        action:     'LARGE TRANSFER',
+        amount,
+        tx_hash:    txHash,
+        wallet,
+        created_at: new Date().toISOString(),
+      }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`[LiquidLens] Supabase write failed ${res.status}: ${text.slice(0, 200)}`);
+  }
+}
+
 // ── Adaptor ───────────────────────────────────────────────────────────────────
 
 const MAX_SEEN_HASHES = 5_000;
@@ -328,5 +363,7 @@ export class LiquidLensAdaptor {
       chainId: this.chainId, timestamp: Date.now(), blockNumber, data,
     };
     eventBus.publish(event);
+    writeWhaleToSupabase(data.asset.toLowerCase(), data.usdValue, data.txHash ?? '', data.from)
+      .catch(err => console.error('[LiquidLens] Supabase write error:', err));
   }
 }
