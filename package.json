@@ -1,12 +1,12 @@
 {
   "name": "fintechcheck",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Real-time DeFi systemic risk engine",
   "main": "dist/index.js",
   "scripts": {
     "build": "node ./node_modules/typescript/bin/tsc && node scripts/copy-assets.js",
     "dev": "ts-node src/index.ts",
-    "start": "node dist/index.js",
+    "start": "node ./node_modules/typescript/bin/tsc && node scripts/copy-assets.js && node dist/index.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
