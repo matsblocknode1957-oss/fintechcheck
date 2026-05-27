@@ -40,8 +40,10 @@ export interface SystemState {
     pegStress: number;
     liquidationStress: number;
     flowPressure: number;
+    corrScore: number;
     composite: number;
     timestamp: number;
     perCoin?: Record<string, number>;
+    correlatedCoins?: string[];
   };
 }

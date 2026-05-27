@@ -1,5 +1,10 @@
 import { AssetPrice, PoRRecord, LiquidationRecord, FlowRecord, SystemState } from '../types';
 
+export interface PriceSnapshot {
+  timestamp: number;
+  prices: Record<string, number>;
+}
+
 /**
  * StateStore interface — designed so an in-memory impl and a Redis-backed impl
  * are interchangeable without touching any other layer.
@@ -9,6 +14,10 @@ export interface IStateStore {
   setPrice(asset: string, data: AssetPrice): void;
   getPrice(asset: string): AssetPrice | undefined;
   getAllPrices(): AssetPrice[];
+
+  // Price history for cross-coin correlation (last 10 snapshots)
+  pushPriceSnapshot(prices: Record<string, number>): void;
+  getPriceHistory(): PriceSnapshot[];
 
   // Proof-of-Reserves
   setPoR(asset: string, data: PoRRecord): void;
@@ -38,6 +47,8 @@ export class InMemoryStateStore implements IStateStore {
   private liquidations: LiquidationRecord[] = [];
   private flows: FlowRecord[] = [];
   private riskSnapshot: SystemState['lastRiskSnapshot'];
+  private priceHistory: PriceSnapshot[] = [];
+  private static readonly MAX_PRICE_HISTORY = 10;
 
   setPrice(asset: string, data: AssetPrice): void {
     this.prices.set(asset, data);
@@ -49,6 +60,17 @@ export class InMemoryStateStore implements IStateStore {
 
   getAllPrices(): AssetPrice[] {
     return Array.from(this.prices.values());
+  }
+
+  pushPriceSnapshot(prices: Record<string, number>): void {
+    this.priceHistory.push({ timestamp: Date.now(), prices: { ...prices } });
+    if (this.priceHistory.length > InMemoryStateStore.MAX_PRICE_HISTORY) {
+      this.priceHistory.shift();
+    }
+  }
+
+  getPriceHistory(): PriceSnapshot[] {
+    return this.priceHistory;
   }
 
   setPoR(asset: string, data: PoRRecord): void {

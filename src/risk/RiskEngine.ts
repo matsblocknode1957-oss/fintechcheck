@@ -44,15 +44,28 @@ export class RiskEngine {
   }
 
   score(): void {
+    // Snapshot current prices first so correlation compares current vs previous cycle
+    const priceSnap: Record<string, number> = {};
+    for (const p of this.store.getAllPrices().filter(p => p.peg > 0)) {
+      priceSnap[p.asset] = p.price;
+    }
+    this.store.pushPriceSnapshot(priceSnap);
+
     const pegStress = this.scorePegStress();
     const liquidationStress = this.scoreLiquidationStress();
     const flowPressure = this.scoreFlowPressure();
-    const composite = Math.round(pegStress * 0.4 + liquidationStress * 0.35 + flowPressure * 0.25);
+    const { corrScore, correlatedCoins } = this.scoreCorrelation();
+    // 4-input composite: peg 35%, liq 30%, flow 20%, corr 15%
+    const composite = Math.round(
+      pegStress * 0.35 + liquidationStress * 0.30 + flowPressure * 0.20 + corrScore * 0.15
+    );
 
     const snapshot = {
       pegStress,
       liquidationStress,
       flowPressure,
+      corrScore,
+      correlatedCoins,
       composite,
       timestamp: Date.now(),
       perCoin: this.scorePerCoin(),
@@ -62,7 +75,7 @@ export class RiskEngine {
     const event: FintechEvent<RiskSnapshotData> = {
       id: uuidv4(),
       type: 'RISK_SNAPSHOT',
-      source: 'PegCheck',   // internal — source doesn't matter
+      source: 'PegCheck',
       chainId: this.chainId,
       timestamp: Date.now(),
       data: { ...snapshot, triggeredRules: [] },
@@ -71,6 +84,23 @@ export class RiskEngine {
   }
 
   // ─── Scorers ────────────────────────────────────────────────────────────────
+
+  private scoreCorrelation(): { corrScore: number; correlatedCoins: string[] } {
+    const history = this.store.getPriceHistory();
+    if (history.length < 2) return { corrScore: 0, correlatedCoins: [] };
+
+    const prev = history[history.length - 2].prices;
+    const curr = history[history.length - 1].prices;
+
+    const dropping = Object.keys(curr).filter(
+      asset => asset in prev && curr[asset] < prev[asset]
+    );
+
+    if (dropping.length < 3) return { corrScore: 0, correlatedCoins: [] };
+
+    const corrScore = Math.min(100, Math.round((dropping.length / 19) * 100));
+    return { corrScore, correlatedCoins: dropping };
+  }
 
   private effectiveDev(asset: string, deviationBps: number): number {
     const threshold = PEG_THRESHOLDS[asset] ?? 0;

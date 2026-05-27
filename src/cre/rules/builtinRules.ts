@@ -70,4 +70,25 @@ export const builtinRules: CRERule[] = [
       };
     },
   },
+
+  {
+    id: 'correlated-depeg-event',
+    name: 'Correlated Depeg Event',
+    description: 'Fires when 5+ coins drop simultaneously in the same cycle',
+    evaluate({ event }: RuleContext): CREAlertData | null {
+      const coins = event.data.correlatedCoins ?? [];
+      if (coins.length < 5) return null;
+      return {
+        ruleId: 'correlated-depeg-event',
+        ruleName: 'Correlated Depeg Event',
+        severity: 'CRITICAL',
+        message: `${coins.length} coins dropping simultaneously — correlated sell pressure detected`,
+        context: {
+          corrScore: event.data.corrScore,
+          correlatedCoins: coins,
+          count: coins.length,
+        },
+      };
+    },
+  },
 ];

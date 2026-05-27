@@ -1,4 +1,4 @@
-// v0.1.1 — force recompile: EURC peg=1.13, alert cooldowns, LUSD/MKUSD thresholds
+// v0.1.2 — CCCS: cross-coin correlation scoring, 4-input composite, correlated event CRE rule
 import { InMemoryStateStore } from './state/StateStore';
 import { eventBus } from './bus/EventBus';
 import { PriceProcessor } from './processors/PriceProcessor';

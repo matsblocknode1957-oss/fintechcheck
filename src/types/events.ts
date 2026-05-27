@@ -91,9 +91,11 @@ export interface RiskSnapshotData {
   pegStress: number;           // 0–100
   liquidationStress: number;   // 0–100
   flowPressure: number;        // 0–100
+  corrScore: number;           // 0–100 cross-coin correlation score
   composite: number;           // weighted composite 0–100
   triggeredRules: string[];
   perCoin?: Record<string, number>;
+  correlatedCoins?: string[];  // assets dropping simultaneously when corrScore > 0
 }
 
 export interface CREAlertData {

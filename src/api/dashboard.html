@@ -89,7 +89,7 @@ html,body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui
 .tstat-val{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1}
 
 /* ── Small gauges (row3) ── */
-.sgauge-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:13px}
+.sgauge-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:13px}
 .sgauge{display:flex;flex-direction:column;align-items:center;gap:5px}
 .sgauge svg{width:92px;height:92px}
 .sgauge-lbl{font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:.1em;text-align:center}
@@ -122,6 +122,11 @@ html,body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',system-ui
 .sev-WHALE   {background:rgba(249,115,22,.12);color:#fdba74;border:1px solid rgba(249,115,22,.3)}
 .sev-MINT    {background:rgba(34,197,94,.12) ;color:#86efac;border:1px solid rgba(34,197,94,.3) }
 .sev-BURN    {background:rgba(239,68,68,.12) ;color:#fca5a5;border:1px solid rgba(239,68,68,.3) }
+.sev-CORR    {background:rgba(168,85,247,.12);color:#d8b4fe;border:1px solid rgba(168,85,247,.3)}
+/* ── Correlated events section ── */
+.corr-section{padding:8px 13px 9px;border-bottom:1px solid rgba(168,85,247,.18);background:rgba(168,85,247,.04)}
+.corr-hd{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.15em;color:#a855f7;margin-bottom:5px}
+.corr-coins{font-family:var(--mono);font-size:9px;color:#d8b4fe;line-height:1.7;word-break:break-word}
 .abody{flex:1;min-width:0}
 .arule{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .amsg {font-size:10px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;margin-top:1px}
@@ -330,6 +335,20 @@ canvas{display:block}
               fill="#22c55e" style="transition:fill .4s">0</text>
           </svg>
           <div class="sgauge-lbl">FLOW PRESSURE</div>
+        </div>
+
+        <div class="sgauge">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#141414" stroke-width="9"
+              stroke-dasharray="179.07 59.69" stroke-linecap="round" transform="rotate(135 50 50)"/>
+            <circle id="sg-corr" cx="50" cy="50" r="38" fill="none" stroke="#22c55e" stroke-width="9"
+              stroke-dasharray="0 238.76" stroke-linecap="round" transform="rotate(135 50 50)"
+              style="transition:stroke-dasharray .7s ease,stroke .4s"/>
+            <text id="sv-corr" x="50" y="55" text-anchor="middle"
+              font-family="'Courier New',monospace" font-size="22" font-weight="700"
+              fill="#22c55e" style="transition:fill .4s">0</text>
+          </svg>
+          <div class="sgauge-lbl">CORR SCORE</div>
         </div>
 
         <div class="sgauge">
@@ -682,9 +701,36 @@ function renderAlerts(alerts) {
 
   const el = document.getElementById('alerts-list');
 
-  const creRows = [...alerts].reverse().slice(0, 5).map(a => `
+  // Separate correlated events from other CRE alerts
+  const corrAlerts = [...alerts].filter(a => a.data.ruleId === 'correlated-depeg-event').reverse();
+  const otherAlerts = [...alerts].filter(a => a.data.ruleId !== 'correlated-depeg-event');
+
+  // Correlated Events section (pinned at top when active)
+  let corrSection = '';
+  if (corrAlerts.length > 0) {
+    const latest = corrAlerts[0];
+    const coins = (latest.data.context.correlatedCoins || []).join(' · ');
+    corrSection = `
+      <div class="corr-section">
+        <div class="corr-hd">⬡ CORRELATED EVENTS · CCCS ${latest.data.context.corrScore ?? '—'}/100</div>
+        <div class="corr-coins">${esc(coins)}</div>
+      </div>`;
+  }
+
+  const creRows = otherAlerts.reverse().slice(0, 5).map(a => `
     <div class="arow">
       <span class="sev sev-${esc(a.data.severity)}">${esc(a.data.severity)}</span>
+      <div class="abody">
+        <div class="arule">${esc(a.data.ruleName)}</div>
+        <div class="amsg">${esc(a.data.message)}</div>
+        <div class="ats">${relTime(a.timestamp)} · ${new Date(a.timestamp).toLocaleTimeString()}</div>
+      </div>
+    </div>`);
+
+  // Correlated event rows also appear in the main feed with CORR badge
+  const corrRows = corrAlerts.slice(0, 3).map(a => `
+    <div class="arow">
+      <span class="sev sev-CORR">CORR</span>
       <div class="abody">
         <div class="arule">${esc(a.data.ruleName)}</div>
         <div class="amsg">${esc(a.data.message)}</div>
@@ -696,15 +742,16 @@ function renderAlerts(alerts) {
 
   // Merge and sort combined entries by timestamp descending
   const combined = [
-    ...[...alerts].reverse().slice(0,5).map(a => ({ ts: a.timestamp, html: creRows.shift() })),
+    ...otherAlerts.reverse().slice(0,5).map(a => ({ ts: a.timestamp, html: creRows.shift() })),
+    ...corrAlerts.slice(0,3).map(a => ({ ts: a.timestamp, html: corrRows.shift() })),
     ...[...flowEvents].reverse().slice(0,5).map(f => ({ ts: f.timestamp, html: flowRows.shift() })),
   ].sort((a, b) => b.ts - a.ts).slice(0, 10);
 
-  if (!combined.length) {
+  if (!corrSection && !combined.length) {
     el.innerHTML = '<div class="empty">[ NO ALERTS — MONITORING ACTIVE ]</div>';
     return;
   }
-  el.innerHTML = combined.map(e => e.html).join('');
+  el.innerHTML = corrSection + combined.map(e => e.html).join('');
 }
 
 // ── State ─────────────────────────────────────────────────────────
@@ -759,6 +806,7 @@ async function pollRisk() {
     setSmallGauge('sg-peg',  'sv-peg',  r.pegStress         ?? 0);
     setSmallGauge('sg-liq',  'sv-liq',  r.liquidationStress ?? 0);
     setSmallGauge('sg-flow', 'sv-flow', r.flowPressure       ?? 0);
+    setSmallGauge('sg-corr', 'sv-corr', r.corrScore          ?? 0);
     setSmallGauge('sg-conf', 'sv-conf', Math.max(0, 100-(r.composite??0)), colConf);
 
     perCoin = r.perCoin ?? {};
