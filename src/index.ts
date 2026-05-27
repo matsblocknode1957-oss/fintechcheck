@@ -1,4 +1,4 @@
-// v0.1.4 — nixpacks.toml + railway.json: tsc now runs in build phase only
+// v0.1.5 — lean tsconfig (no declaration files), incremental build, railway.json only
 import { InMemoryStateStore } from './state/StateStore';
 import { eventBus } from './bus/EventBus';
 import { PriceProcessor } from './processors/PriceProcessor';
