@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FintechCheck — Correlated Risk Engine</title>
+<title>FintechCheck — Risk Engine</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -155,7 +155,7 @@ canvas{display:block}
 
 <!-- TOP BAR -->
 <nav id="topbar">
-  <div class="tb-brand">FINTECHCHECK <span>— CORRELATED RISK ENGINE</span></div>
+  <div class="tb-brand">FINTECHCHECK <span>— RISK ENGINE</span></div>
   <div class="tb-live"><div class="pulse-dot" id="live-dot"></div><span id="live-txt">LIVE</span></div>
   <div id="utc-time">—</div>
 </nav>
@@ -165,10 +165,10 @@ canvas{display:block}
   <!-- ROW 1 -->
   <div class="row1">
 
-    <!-- 1a: Main CRE gauge -->
+    <!-- 1a: Main FRE gauge -->
     <div class="card">
       <div class="card-hd">
-        <span class="card-title">CRE Risk Score</span>
+        <span class="card-title">FRE Risk Score</span>
         <span class="badge" id="lvl-badge">LOW</span>
       </div>
       <div class="mg-wrap">
@@ -193,7 +193,7 @@ canvas{display:block}
     <!-- 1b: Score history chart -->
     <div class="card">
       <div class="card-hd">
-        <span class="card-title">CRE Score Over Time</span>
+        <span class="card-title">FRE Score Over Time</span>
         <span class="badge" id="hcount-badge" style="background:#111;color:#444;border:1px solid #1a1a1a">0 pts</span>
       </div>
       <div id="hchart-wrap"><canvas id="history-chart"></canvas></div>
@@ -377,8 +377,8 @@ canvas{display:block}
         <div class="hi">
           <div class="hi-icon">⬡</div>
           <div>
-            <h4>CRE ENGINE</h4>
-            <p>Condition-Rule-Effect engine evaluates registered rules against every risk snapshot. Rules are pure functions — no ML opacity. Add a rule by calling <code style="color:#666">ruleEngine.register()</code>.</p>
+            <h4>FRE ENGINE</h4>
+            <p>FintechCheck Risk Engine — real-time correlated risk scoring across 19 stablecoins using market-cap weighted peg stress, liquidation cascade detection, flow pressure analysis and cross-coin correlation scoring.</p>
           </div>
         </div>
         <div class="hi">
@@ -703,7 +703,7 @@ function renderAlerts(alerts) {
 
   const el = document.getElementById('alerts-list');
 
-  // Separate correlated events from other CRE alerts
+  // Separate correlated events from other FRE alerts
   const corrAlerts = [...alerts].filter(a => a.data.ruleId === 'correlated-depeg-event').reverse();
   const otherAlerts = [...alerts].filter(a => a.data.ruleId !== 'correlated-depeg-event');
 
