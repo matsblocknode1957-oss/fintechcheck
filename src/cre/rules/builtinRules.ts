@@ -6,6 +6,7 @@ export const builtinRules: CRERule[] = [
     id: 'peg-stress-critical',
     name: 'Critical Peg Stress',
     description: 'Fires when peg stress score exceeds 80',
+    cooldownMs: 600_000,   // 10-minute cooldown — was firing every 60s per poll cycle
     evaluate({ event }: RuleContext): CREAlertData | null {
       if (event.data.pegStress < 80) return null;
       return {

@@ -52,7 +52,8 @@ export class RuleEngine {
       // The risk engine re-scores on every PEG_DEVIATION event; with 19 coins
       // per poll that generates up to 19 snapshots and 19 identical alerts.
       const lastFiredAt = this.lastFired.get(rule.id) ?? 0;
-      if (now - lastFiredAt < ALERT_COOLDOWN_MS) continue;
+      const cooldown = rule.cooldownMs ?? ALERT_COOLDOWN_MS;
+      if (now - lastFiredAt < cooldown) continue;
 
       const alert = rule.evaluate({ event });
       if (!alert) continue;

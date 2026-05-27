@@ -30,6 +30,13 @@ const PEG_OVERRIDES: Record<string, number> = {
   EURC: 1.13,   // Circle Euro Coin — pegged to EUR/USD reference rate
 };
 
+// Hard runtime guard — mirrors the one in PriceProcessor.
+if ((PEG_OVERRIDES['EURC'] ?? 0) < 1.10) {
+  console.error(`[PegCheckAdaptor] EURC override was ${PEG_OVERRIDES['EURC']} — FORCING to 1.13`);
+  PEG_OVERRIDES['EURC'] = 1.13;
+}
+console.log(`[PegCheckAdaptor] STARTUP CHECK — EURC override = ${PEG_OVERRIDES['EURC']}`);
+
 export class PegCheckAdaptor {
   private timer?: NodeJS.Timeout;
 

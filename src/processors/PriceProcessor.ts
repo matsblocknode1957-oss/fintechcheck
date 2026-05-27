@@ -32,11 +32,20 @@ const PEG_TARGETS: Record<string, number> = {
   EURC:   1.13,
 };
 
+// Hard runtime guard: Railway has served stale dist/ where EURC compiled as 1.00.
+// This runs at module load and corrects the value regardless of what tsc produced.
+if ((PEG_TARGETS['EURC'] ?? 0) < 1.10) {
+  console.error(`[PriceProcessor] EURC peg was ${PEG_TARGETS['EURC']} — FORCING to 1.13`);
+  PEG_TARGETS['EURC'] = 1.13;
+}
+console.log(`[PriceProcessor] STARTUP CHECK — EURC peg = ${PEG_TARGETS['EURC']}`);
+
+
 export class PriceProcessor {
   constructor(private store: IStateStore) {}
 
   start(): void {
-    console.log(`[PriceProcessor] EURC peg target = ${PEG_TARGETS['EURC']} (expected 1.13)`);
+    console.log(`[PriceProcessor] EURC peg = ${PEG_TARGETS['EURC']} (confirmed at start)`);
     eventBus.subscribe<PriceUpdateData>('PRICE_UPDATE', (event) => this.handle(event));
   }
 

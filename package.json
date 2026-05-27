@@ -1,6 +1,6 @@
 {
   "name": "fintechcheck",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Real-time DeFi systemic risk engine",
   "main": "dist/index.js",
   "scripts": {

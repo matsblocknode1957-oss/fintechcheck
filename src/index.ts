@@ -1,4 +1,4 @@
-// v0.1.2 — CCCS: cross-coin correlation scoring, 4-input composite, correlated event CRE rule
+// v0.1.3 — EURC runtime guard, per-rule CRE cooldowns (Critical Peg Stress 10min)
 import { InMemoryStateStore } from './state/StateStore';
 import { eventBus } from './bus/EventBus';
 import { PriceProcessor } from './processors/PriceProcessor';
