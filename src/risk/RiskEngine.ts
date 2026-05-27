@@ -7,9 +7,12 @@ const SCORE_INTERVAL_MS = 10_000;
 
 // Coins with a wider acceptable trading range before contributing to peg stress.
 // Deviation within the threshold is considered normal and ignored by the scorer.
+// Bps to subtract before a coin contributes to peg stress.
+// LUSD routinely trades ~+29 bps above peg; MKUSD ~-40 bps.
+// ±60 bps is the normal band; only excess beyond that drives the score.
 const PEG_THRESHOLDS: Record<string, number> = {
-  LUSD:  50,   // algorithmic; routinely trades ±50 bps
-  MKUSD: 50,   // Prisma mkUSD; same operating tolerance
+  LUSD:  60,
+  MKUSD: 60,
 };
 
 /**

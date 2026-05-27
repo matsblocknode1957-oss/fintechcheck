@@ -621,14 +621,18 @@ function renderPrices(prices) {
   const tbody = document.getElementById('prices-tbody');
   if (!n) { tbody.innerHTML = '<tr><td colspan="5" class="empty">NO DATA</td></tr>'; return; }
 
+  // Coins that trade outside the standard ±20/±50 bps bands.
+  const WIDE_PEG = { LUSD: [60, 150], MKUSD: [60, 150] };
+
   tbody.innerHTML = prices.map(p => {
     const dev = p.deviationBps ?? 0, abs = Math.abs(dev);
     const dstr = dev===0 ? '±0' : (dev>0?'+':'')+dev;
     const dcls = dev>0 ? 'color:#22c55e' : dev<0 ? 'color:#ef4444' : 'color:#444';
+    const [watchBps, alertBps] = WIDE_PEG[p.asset] ?? [20, 50];
     const [pbg,pfg,pbd,plbl] =
-      abs<20  ? ['rgba(34,197,94,.10)','#86efac','rgba(34,197,94,.25)','NORMAL']
-    : abs<50  ? ['rgba(234,179,8,.10)', '#fde047','rgba(234,179,8,.25)', 'WATCH']
-    :           ['rgba(239,68,68,.10)', '#fca5a5','rgba(239,68,68,.25)', 'ALERT'];
+      abs < watchBps ? ['rgba(34,197,94,.10)','#86efac','rgba(34,197,94,.25)','NORMAL']
+    : abs < alertBps ? ['rgba(234,179,8,.10)', '#fde047','rgba(234,179,8,.25)', 'WATCH']
+    :                  ['rgba(239,68,68,.10)', '#fca5a5','rgba(239,68,68,.25)', 'ALERT'];
     const risk = perCoin[p.asset] ?? 0;
     const [rfg] = risk < 20 ? ['#86efac'] : risk < 50 ? ['#fde047'] : ['#fca5a5'];
     return `<tr>

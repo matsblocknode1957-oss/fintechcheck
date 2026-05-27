@@ -12,9 +12,12 @@ import { builtinRules } from './rules/builtinRules';
  * Rules are pure functions: (context) => alert | null.
  * Adding a rule = pushing to the registry. No framework needed.
  */
+const ALERT_COOLDOWN_MS = 60_000;
+
 export class RuleEngine {
   private rules: Map<string, CRERule> = new Map();
   private alertHistory: Array<FintechEvent<CREAlertData>> = [];
+  private lastFired = new Map<string, number>();  // ruleId → last fired ms
 
   constructor(private chainId: number) {
     for (const rule of builtinRules) {
@@ -42,11 +45,19 @@ export class RuleEngine {
 
   private evaluate(event: FintechEvent<RiskSnapshotData>): void {
     const triggered: string[] = [];
+    const now = Date.now();
 
     for (const rule of this.rules.values()) {
+      // Skip if this rule already fired within the cooldown window.
+      // The risk engine re-scores on every PEG_DEVIATION event; with 19 coins
+      // per poll that generates up to 19 snapshots and 19 identical alerts.
+      const lastFiredAt = this.lastFired.get(rule.id) ?? 0;
+      if (now - lastFiredAt < ALERT_COOLDOWN_MS) continue;
+
       const alert = rule.evaluate({ event });
       if (!alert) continue;
 
+      this.lastFired.set(rule.id, now);
       triggered.push(rule.id);
       const alertEvent: FintechEvent<CREAlertData> = {
         id: uuidv4(),

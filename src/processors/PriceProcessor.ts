@@ -36,6 +36,7 @@ export class PriceProcessor {
   constructor(private store: IStateStore) {}
 
   start(): void {
+    console.log(`[PriceProcessor] EURC peg target = ${PEG_TARGETS['EURC']} (expected 1.13)`);
     eventBus.subscribe<PriceUpdateData>('PRICE_UPDATE', (event) => this.handle(event));
   }
 
