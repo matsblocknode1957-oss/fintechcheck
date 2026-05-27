@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { FintechEvent, PriceUpdateData } from '../../types';
 import { eventBus } from '../../bus/EventBus';
+import { getEurUsdRate } from '../../utils/eurUsdRate';
 
 const API_URL = 'https://pegcheck.uk/api/v1/coins';
 
@@ -24,18 +25,9 @@ const STATUS_CONFIDENCE: Record<string, number> = {
   alert:  0.50,
 };
 
-// Non-USD peg overrides — passed through to PriceProcessor so it never
-// falls back to the wrong default. All other coins are USD-pegged (1.0).
-const PEG_OVERRIDES: Record<string, number> = {
-  EURC: 1.13,   // Circle Euro Coin — pegged to EUR/USD reference rate
-};
-
-// Hard runtime guard — mirrors the one in PriceProcessor.
-if ((PEG_OVERRIDES['EURC'] ?? 0) < 1.10) {
-  console.error(`[PegCheckAdaptor] EURC override was ${PEG_OVERRIDES['EURC']} — FORCING to 1.13`);
-  PEG_OVERRIDES['EURC'] = 1.13;
-}
-console.log(`[PegCheckAdaptor] STARTUP CHECK — EURC override = ${PEG_OVERRIDES['EURC']}`);
+// Non-USD assets that need a live peg value injected into the event.
+// EURC uses the live EUR/USD rate fetched by eurUsdRate.ts.
+const EUR_PEGGED = new Set(['EURC']);
 
 export class PegCheckAdaptor {
   private timer?: NodeJS.Timeout;
@@ -87,7 +79,7 @@ export class PegCheckAdaptor {
           priceFeed:  `pegcheck.uk/${coin.slug}`,
           price:      coin.price,
           confidence: STATUS_CONFIDENCE[coin.status] ?? 0.50,
-          peg:        PEG_OVERRIDES[asset],  // only set for non-USD-pegged coins
+          peg:        EUR_PEGGED.has(asset) ? getEurUsdRate() : undefined,
         },
       };
       eventBus.publish(event);

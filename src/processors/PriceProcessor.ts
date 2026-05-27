@@ -2,6 +2,7 @@ import { FintechEvent, PriceUpdateData, PegDeviationData } from '../types';
 import { IStateStore } from '../state/StateStore';
 import { eventBus } from '../bus/EventBus';
 import { v4 as uuidv4 } from 'uuid';
+import { getEurUsdRate } from '../utils/eurUsdRate';
 
 /**
  * Processes PRICE_UPDATE events: updates state and derives PEG_DEVIATION
@@ -28,32 +29,23 @@ const PEG_TARGETS: Record<string, number> = {
   GHO:    1.0,   // Aave GHO
   DOLA:   1.0,   // Inverse Finance DOLA
   ALUSD:  1.0,   // Alchemix alUSD
-  // EUR-pegged — target moves with EUR/USD; 1.13 is the reference used by PegCheck
-  EURC:   1.13,
+  // EURC is EUR-pegged — peg resolved live via getEurUsdRate()
 };
-
-// Hard runtime guard: Railway has served stale dist/ where EURC compiled as 1.00.
-// This runs at module load and corrects the value regardless of what tsc produced.
-if ((PEG_TARGETS['EURC'] ?? 0) < 1.10) {
-  console.error(`[PriceProcessor] EURC peg was ${PEG_TARGETS['EURC']} — FORCING to 1.13`);
-  PEG_TARGETS['EURC'] = 1.13;
-}
-console.log(`[PriceProcessor] STARTUP CHECK — EURC peg = ${PEG_TARGETS['EURC']}`);
-
 
 export class PriceProcessor {
   constructor(private store: IStateStore) {}
 
   start(): void {
-    console.log(`[PriceProcessor] EURC peg = ${PEG_TARGETS['EURC']} (confirmed at start)`);
     eventBus.subscribe<PriceUpdateData>('PRICE_UPDATE', (event) => this.handle(event));
   }
 
   private handle(event: FintechEvent<PriceUpdateData>): void {
     const { asset, price } = event.data;
-    // event.data.peg takes precedence — lets the adaptor pass authoritative
-    // peg targets (e.g. EURC = 1.13) without relying solely on the local map.
-    const peg = event.data.peg ?? PEG_TARGETS[asset] ?? 0;
+    // event.data.peg takes precedence (adaptor sets live EUR/USD for EURC).
+    // EURC fallback: live EUR/USD rate. All others: static PEG_TARGETS map.
+    const peg = event.data.peg
+      ?? (asset === 'EURC' ? getEurUsdRate() : PEG_TARGETS[asset])
+      ?? 0;
     const deviationBps = peg > 0 ? Math.round(((price - peg) / peg) * 10_000) : 0;
 
     this.store.setPrice(asset, {

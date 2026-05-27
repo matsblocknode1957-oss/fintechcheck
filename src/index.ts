@@ -1,4 +1,4 @@
-// v0.1.5 — lean tsconfig (no declaration files), incremental build, railway.json only
+// v0.1.6 — live EUR/USD rate for EURC peg via CoinGecko, refreshed every 4h
 import { InMemoryStateStore } from './state/StateStore';
 import { eventBus } from './bus/EventBus';
 import { PriceProcessor } from './processors/PriceProcessor';
@@ -10,12 +10,16 @@ import { LiquidLensAdaptor } from './ingest/adaptors/LiquidLensAdaptor';
 import { RiskEngine } from './risk/RiskEngine';
 import { RuleEngine } from './cre/RuleEngine';
 import { createServer } from './api/server';
+import { startEurUsdRefresh, stopEurUsdRefresh } from './utils/eurUsdRate';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const CHAIN_ID = 1;  // Ethereum mainnet
 
 async function main(): Promise<void> {
   console.log('=== FintechCheck starting ===');
+
+  // 0. Fetch live EUR/USD rate before any price events are processed
+  await startEurUsdRefresh();
 
   // 1. State
   const store = new InMemoryStateStore();
@@ -75,6 +79,7 @@ async function main(): Promise<void> {
 
   process.on('SIGINT', () => {
     console.log('\nShutting down...');
+    stopEurUsdRefresh();
     pegCheck.stop();
     porAdaptor.stop();
     liquidLens.stop();
