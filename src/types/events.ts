@@ -37,6 +37,7 @@ export interface PriceUpdateData {
   priceFeed: string;       // feed identifier
   price: number;           // USD price
   confidence?: number;     // 0–1 Pyth confidence
+  peg?: number;            // authoritative peg from the source (overrides processor lookup)
 }
 
 export interface PegDeviationData {

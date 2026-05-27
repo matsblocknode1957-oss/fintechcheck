@@ -24,6 +24,12 @@ const STATUS_CONFIDENCE: Record<string, number> = {
   alert:  0.50,
 };
 
+// Non-USD peg overrides — passed through to PriceProcessor so it never
+// falls back to the wrong default. All other coins are USD-pegged (1.0).
+const PEG_OVERRIDES: Record<string, number> = {
+  EURC: 1.13,   // Circle Euro Coin — pegged to EUR/USD reference rate
+};
+
 export class PegCheckAdaptor {
   private timer?: NodeJS.Timeout;
 
@@ -62,6 +68,7 @@ export class PegCheckAdaptor {
     const body = (await res.json()) as PegCheckResponse;
 
     for (const coin of body.coins) {
+      const asset = coin.slug.toUpperCase();
       const event: FintechEvent<PriceUpdateData> = {
         id: uuidv4(),
         type: 'PRICE_UPDATE',
@@ -69,10 +76,11 @@ export class PegCheckAdaptor {
         chainId: this.chainId,
         timestamp: new Date(coin.updated_at).getTime(),
         data: {
-          asset:     coin.slug.toUpperCase(),
-          priceFeed: `pegcheck.uk/${coin.slug}`,
-          price:     coin.price,
+          asset,
+          priceFeed:  `pegcheck.uk/${coin.slug}`,
+          price:      coin.price,
           confidence: STATUS_CONFIDENCE[coin.status] ?? 0.50,
+          peg:        PEG_OVERRIDES[asset],  // only set for non-USD-pegged coins
         },
       };
       eventBus.publish(event);

@@ -154,11 +154,14 @@ function parseTransferLog(log: EthLog): ParsedTransfer | null {
 
 // ── Adaptor ───────────────────────────────────────────────────────────────────
 
+const MAX_SEEN_HASHES = 5_000;
+
 export class LiquidLensAdaptor {
   private readonly chainId: number;
   private lastBlock = 0;
   private timer?: NodeJS.Timeout;
   private reqId    = 0;
+  private seenWhaleHashes = new Set<string>();
 
   constructor(chainId: number) {
     this.chainId = chainId;
@@ -276,9 +279,15 @@ export class LiquidLensAdaptor {
         );
         burnCount++;
       } else {
-        // Regular transfer — emit whale event only if above threshold
+        // Regular transfer — emit whale event only if above threshold.
+        // Deduplicate by txHash: a complex tx (e.g. DEX swap) can produce
+        // multiple Transfer events all above the threshold; we only want one
+        // alert per transaction. The seen-set is capped to avoid unbounded growth.
         const usdValue = toUsd(value, token);
         if (usdValue >= WHALE_USD_MIN) {
+          if (this.seenWhaleHashes.has(log.transactionHash)) continue;
+          this.seenWhaleHashes.add(log.transactionHash);
+          if (this.seenWhaleHashes.size > MAX_SEEN_HASHES) this.seenWhaleHashes.clear();
           const decimals = TOKEN_DECIMALS[token] ?? 18;
           this.injectWhaleTransfer(
             { asset, from, to, amount: Number(value) / 10 ** decimals, usdValue, txHash: log.transactionHash },

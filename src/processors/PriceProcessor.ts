@@ -27,6 +27,7 @@ const PEG_TARGETS: Record<string, number> = {
   GUSD:   1.0,   // Gemini Dollar
   GHO:    1.0,   // Aave GHO
   DOLA:   1.0,   // Inverse Finance DOLA
+  ALUSD:  1.0,   // Alchemix alUSD
   // EUR-pegged — target moves with EUR/USD; 1.13 is the reference used by PegCheck
   EURC:   1.13,
 };
@@ -40,7 +41,9 @@ export class PriceProcessor {
 
   private handle(event: FintechEvent<PriceUpdateData>): void {
     const { asset, price } = event.data;
-    const peg = PEG_TARGETS[asset] ?? 0;
+    // event.data.peg takes precedence — lets the adaptor pass authoritative
+    // peg targets (e.g. EURC = 1.13) without relying solely on the local map.
+    const peg = event.data.peg ?? PEG_TARGETS[asset] ?? 0;
     const deviationBps = peg > 0 ? Math.round(((price - peg) / peg) * 10_000) : 0;
 
     this.store.setPrice(asset, {
