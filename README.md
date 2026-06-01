@@ -16,7 +16,7 @@ Most tools track these individually. None combine them into a unified risk signa
 ---
 
 ## ⚡ The Solution
-FintechCheck introduces a **Composite Risk Engine (CRE)**:
+FintechCheck introduces a **FintechCheck Risk Engine (FRE)**:
 - **Peg Stress** → detects depeg risk early  
 - **Liquidation Stress** → monitors cascading positions  
 - **Flow Pressure** → tracks capital movement  
