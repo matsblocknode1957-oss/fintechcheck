@@ -112,19 +112,58 @@ export class RiskEngine {
 
   private scoreCorrelation(): { corrScore: number; correlatedCoins: string[] } {
     const history = this.store.getPriceHistory();
-    if (history.length < 2) return { corrScore: 0, correlatedCoins: [] };
+    if (history.length < 3) return { corrScore: 0, correlatedCoins: [] };
 
-    const prev = history[history.length - 2].prices;
-    const curr = history[history.length - 1].prices;
+    // Build per-coin price series — only include coins present in every snapshot
+    const lastPrices = history[history.length - 1].prices;
+    const series: Record<string, number[]> = {};
+    for (const coin of Object.keys(lastPrices)) {
+      const vals = history.map(h => h.prices[coin]);
+      if (vals.every(v => v !== undefined)) series[coin] = vals as number[];
+    }
 
-    const dropping = Object.keys(curr).filter(
-      asset => asset in prev && curr[asset] < prev[asset]
-    );
+    const coins = Object.keys(series);
+    if (coins.length < 2) return { corrScore: 0, correlatedCoins: [] };
 
-    if (dropping.length < 3) return { corrScore: 0, correlatedCoins: [] };
+    const pearson = (xs: number[], ys: number[]): number => {
+      const n = xs.length;
+      const meanX = xs.reduce((s, v) => s + v, 0) / n;
+      const meanY = ys.reduce((s, v) => s + v, 0) / n;
+      let num = 0, denomX = 0, denomY = 0;
+      for (let i = 0; i < n; i++) {
+        const dx = xs[i] - meanX;
+        const dy = ys[i] - meanY;
+        num += dx * dy;
+        denomX += dx * dx;
+        denomY += dy * dy;
+      }
+      const denom = Math.sqrt(denomX * denomY);
+      return denom === 0 ? 0 : num / denom;
+    };
 
-    const corrScore = Math.min(100, Math.round((dropping.length / 19) * 100));
-    return { corrScore, correlatedCoins: dropping };
+    const THRESHOLD = 0.7;
+    let sigSum = 0;
+    let sigCount = 0;
+    const correlatedSet = new Set<string>();
+
+    for (let i = 0; i < coins.length; i++) {
+      for (let j = i + 1; j < coins.length; j++) {
+        const r = Math.abs(pearson(series[coins[i]], series[coins[j]]));
+        if (r >= THRESHOLD) {
+          sigSum += r;
+          sigCount++;
+          correlatedSet.add(coins[i]);
+          correlatedSet.add(coins[j]);
+        }
+      }
+    }
+
+    if (sigCount === 0) return { corrScore: 0, correlatedCoins: [] };
+
+    // Scale average r from [0.7, 1.0] → [0, 100]
+    const avgR = sigSum / sigCount;
+    const corrScore = Math.min(100, Math.round(((avgR - THRESHOLD) / (1 - THRESHOLD)) * 100));
+    return { corrScore, correlatedCoins: Array.from(correlatedSet) };
   }
 
   private effectiveDev(asset: string, deviationBps: number): number {

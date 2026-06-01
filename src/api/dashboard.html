@@ -759,7 +759,7 @@ function renderAlerts(alerts) {
 // ── State ─────────────────────────────────────────────────────────
 function renderState(state) {
   const protos = new Set((state.recentLiquidations || []).map(l => l.protocol));
-  const n = Math.max(protos.size, 2);
+  const n = protos.size;
   document.getElementById('s-protos').textContent  = n;
   document.getElementById('bb-protos').textContent = n;
 }
