@@ -16,9 +16,9 @@ const PORT = Number(process.env.PORT ?? 8080);
 const CHAIN_ID = 1;  // Ethereum mainnet
 
 // ── Chainlink PoR config ──────────────────────────────────────────────────────
-// Set USDC_POR_FEED to the aggregator address from https://data.chain.link/proof-of-reserve
-const USDC_POR_FEED = process.env.USDC_POR_FEED;
-const USDC_TOKEN    = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+// WBTC Proof of Reserve — tracks BTC held by BitGo backing Wrapped Bitcoin
+const WBTC_POR_FEED = process.env.WBTC_POR_FEED ?? '0xa81FE04086865e63E12dD3776978E49DEEa2ea4e';
+const WBTC_TOKEN    = '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599';
 const ETH_RPC_URL   = process.env.ETH_RPC_URL ?? 'https://ethereum.publicnode.com';
 
 async function main(): Promise<void> {
@@ -51,11 +51,10 @@ async function main(): Promise<void> {
   const porAdaptor = new ChainlinkPoRAdaptor(
     [
       {
-        asset: 'USDC',
-        // Chainlink PoR aggregator address (set USDC_POR_FEED env var)
-        reserveAddress: USDC_POR_FEED ?? 'unconfigured',
+        asset: 'WBTC',
+        reserveAddress: WBTC_POR_FEED,
         chainId: CHAIN_ID,
-        fetchAttestation: fetchUsdcPoR,
+        fetchAttestation: fetchWbtcPoR,
       },
     ],
     30_000,
@@ -97,13 +96,7 @@ async function main(): Promise<void> {
 
 // ─── Chainlink PoR fetcher ────────────────────────────────────────────────────
 
-async function fetchUsdcPoR(): Promise<{ reportedReserves: bigint; circulatingSupply: bigint }> {
-  if (!USDC_POR_FEED) {
-    throw new Error(
-      'USDC_POR_FEED env var not set — find the aggregator address at https://data.chain.link/proof-of-reserve',
-    );
-  }
-
+async function fetchWbtcPoR(): Promise<{ reportedReserves: bigint; circulatingSupply: bigint }> {
   const call = async (to: string, data: string): Promise<string> => {
     const res = await fetch(ETH_RPC_URL, {
       method: 'POST',
@@ -116,17 +109,16 @@ async function fetchUsdcPoR(): Promise<{ reportedReserves: bigint; circulatingSu
   };
 
   const [roundHex, supplyHex] = await Promise.all([
-    // latestRoundData() = 0xfeaf968c
-    // returns: roundId (32B) | answer (32B) | startedAt | updatedAt | answeredInRound
-    call(USDC_POR_FEED, '0xfeaf968c'),
-    // totalSupply() = 0x18160ddd
-    call(USDC_TOKEN, '0x18160ddd'),
+    // latestRoundData() = 0xfeaf968c — BTC reserves held by BitGo, 8 decimals
+    call(WBTC_POR_FEED, '0xfeaf968c'),
+    // totalSupply() = 0x18160ddd — WBTC in circulation, 8 decimals
+    call(WBTC_TOKEN, '0x18160ddd'),
   ]);
 
   // answer is the second 32-byte slot (offset 64 hex chars after '0x')
   const answerHex = roundHex.slice(2 + 64, 2 + 128);
-  // PoR answer has 8 decimals; USDC totalSupply has 6 — divide by 100 to match scale
-  const reportedReserves = BigInt('0x' + answerHex) / 100n;
+  // Both PoR answer and WBTC totalSupply use 8 decimals — no normalisation needed
+  const reportedReserves = BigInt('0x' + answerHex);
   const circulatingSupply = BigInt(supplyHex);
   return { reportedReserves, circulatingSupply };
 }
