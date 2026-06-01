@@ -15,6 +15,12 @@ import { startEurUsdRefresh, stopEurUsdRefresh } from './utils/eurUsdRate';
 const PORT = Number(process.env.PORT ?? 8080);
 const CHAIN_ID = 1;  // Ethereum mainnet
 
+// ── Chainlink PoR config ──────────────────────────────────────────────────────
+// Set USDC_POR_FEED to the aggregator address from https://data.chain.link/proof-of-reserve
+const USDC_POR_FEED = process.env.USDC_POR_FEED;
+const USDC_TOKEN    = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+const ETH_RPC_URL   = process.env.ETH_RPC_URL ?? 'https://ethereum.publicnode.com';
+
 async function main(): Promise<void> {
   console.log('=== FintechCheck starting ===');
 
@@ -46,9 +52,10 @@ async function main(): Promise<void> {
     [
       {
         asset: 'USDC',
-        reserveAddress: '0xCircleReserve',
+        // Chainlink PoR aggregator address (set USDC_POR_FEED env var)
+        reserveAddress: USDC_POR_FEED ?? 'unconfigured',
         chainId: CHAIN_ID,
-        fetchAttestation: simulatePoR(1.02),
+        fetchAttestation: fetchUsdcPoR,
       },
     ],
     30_000,
@@ -88,13 +95,40 @@ async function main(): Promise<void> {
   });
 }
 
-// ─── Simulation helpers ───────────────────────────────────────────────────────
+// ─── Chainlink PoR fetcher ────────────────────────────────────────────────────
 
-function simulatePoR(ratio: number): () => Promise<{ reportedReserves: bigint; circulatingSupply: bigint }> {
-  return async () => ({
-    reportedReserves: BigInt(Math.round(ratio * 1_000_000_000)),
-    circulatingSupply: BigInt(1_000_000_000),
-  });
+async function fetchUsdcPoR(): Promise<{ reportedReserves: bigint; circulatingSupply: bigint }> {
+  if (!USDC_POR_FEED) {
+    throw new Error(
+      'USDC_POR_FEED env var not set — find the aggregator address at https://data.chain.link/proof-of-reserve',
+    );
+  }
+
+  const call = async (to: string, data: string): Promise<string> => {
+    const res = await fetch(ETH_RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to, data }, 'latest'] }),
+    });
+    const json = await res.json() as { result?: string };
+    if (!json.result || json.result === '0x') throw new Error(`eth_call to ${to} returned empty`);
+    return json.result;
+  };
+
+  const [roundHex, supplyHex] = await Promise.all([
+    // latestRoundData() = 0xfeaf968c
+    // returns: roundId (32B) | answer (32B) | startedAt | updatedAt | answeredInRound
+    call(USDC_POR_FEED, '0xfeaf968c'),
+    // totalSupply() = 0x18160ddd
+    call(USDC_TOKEN, '0x18160ddd'),
+  ]);
+
+  // answer is the second 32-byte slot (offset 64 hex chars after '0x')
+  const answerHex = roundHex.slice(2 + 64, 2 + 128);
+  // PoR answer has 8 decimals; USDC totalSupply has 6 — divide by 100 to match scale
+  const reportedReserves = BigInt('0x' + answerHex) / 100n;
+  const circulatingSupply = BigInt(supplyHex);
+  return { reportedReserves, circulatingSupply };
 }
 
 
