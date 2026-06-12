@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { IStateStore } from '../state/StateStore';
-import { RuleEngine } from '../cre/RuleEngine';
+import { RuleEngine } from '../fre/RuleEngine';
 
-export function buildRouter(store: IStateStore, cre: RuleEngine): Router {
+export function buildRouter(store: IStateStore, fre: RuleEngine): Router {
   const router = Router();
 
   router.get('/health', (_req: Request, res: Response) => {
@@ -41,7 +41,7 @@ export function buildRouter(store: IStateStore, cre: RuleEngine): Router {
 
   router.get('/alerts', (req: Request, res: Response) => {
     const limit = parseInt(req.query['limit'] as string ?? '50', 10);
-    res.json(cre.getAlertHistory(isNaN(limit) ? 50 : limit));
+    res.json(fre.getAlertHistory(isNaN(limit) ? 50 : limit));
   });
 
   router.get('/state', (_req: Request, res: Response) => {

@@ -1,13 +1,13 @@
-import { FintechEvent, RiskSnapshotData, CREAlertData } from '../types';
+import { FintechEvent, RiskSnapshotData, FREAlertData } from '../types';
 
 export interface RuleContext {
   event: FintechEvent<RiskSnapshotData>;
 }
 
-export interface CRERule {
+export interface FRERule {
   id: string;
   name: string;
   description: string;
   cooldownMs?: number;   // overrides the default 60s cooldown when set
-  evaluate(ctx: RuleContext): CREAlertData | null;
+  evaluate(ctx: RuleContext): FREAlertData | null;
 }

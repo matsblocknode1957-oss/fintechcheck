@@ -719,7 +719,7 @@ function renderAlerts(alerts) {
       </div>`;
   }
 
-  const creRows = otherAlerts.reverse().slice(0, 5).map(a => `
+  const freRows = otherAlerts.reverse().slice(0, 5).map(a => `
     <div class="arow">
       <span class="sev sev-${esc(a.data.severity)}">${esc(a.data.severity)}</span>
       <div class="abody">
@@ -744,7 +744,7 @@ function renderAlerts(alerts) {
 
   // Merge and sort combined entries by timestamp descending
   const combined = [
-    ...otherAlerts.reverse().slice(0,5).map(a => ({ ts: a.timestamp, html: creRows.shift() })),
+    ...otherAlerts.reverse().slice(0,5).map(a => ({ ts: a.timestamp, html: freRows.shift() })),
     ...corrAlerts.slice(0,3).map(a => ({ ts: a.timestamp, html: corrRows.shift() })),
     ...[...flowEvents].reverse().slice(0,5).map(f => ({ ts: f.timestamp, html: flowRows.shift() })),
   ].sort((a, b) => b.ts - a.ts).slice(0, 10);

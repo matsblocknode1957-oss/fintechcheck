@@ -42,7 +42,7 @@ const MAX_DEV_BPS = 200;
 
 /**
  * Risk scoring engine — runs on a fixed interval and after key events.
- * Emits RISK_SNAPSHOT events that the CRE rule engine consumes.
+ * Emits RISK_SNAPSHOT events that the FRE rule engine consumes.
  *
  * Scoring is intentionally simple (0–100 linear scales) so thresholds
  * are readable and auditable without ML opacity.

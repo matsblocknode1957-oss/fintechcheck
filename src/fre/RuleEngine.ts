@@ -1,13 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
-import { FintechEvent, RiskSnapshotData, CREAlertData } from '../types';
+import { FintechEvent, RiskSnapshotData, FREAlertData } from '../types';
 import { eventBus } from '../bus/EventBus';
-import { CRERule } from './types';
+import { FRERule } from './types';
 import { builtinRules } from './rules/builtinRules';
 
 /**
- * CRE — Condition-Rule-Effect engine.
+ * FRE — Fintech Risk Engine.
  * Subscribes to RISK_SNAPSHOT events, evaluates all registered rules,
- * and publishes CRE_ALERT events for each triggered rule.
+ * and publishes FRE_ALERT events for each triggered rule.
  *
  * Rules are pure functions: (context) => alert | null.
  * Adding a rule = pushing to the registry. No framework needed.
@@ -15,8 +15,8 @@ import { builtinRules } from './rules/builtinRules';
 const ALERT_COOLDOWN_MS = 60_000;
 
 export class RuleEngine {
-  private rules: Map<string, CRERule> = new Map();
-  private alertHistory: Array<FintechEvent<CREAlertData>> = [];
+  private rules: Map<string, FRERule> = new Map();
+  private alertHistory: Array<FintechEvent<FREAlertData>> = [];
   private lastFired = new Map<string, number>();  // ruleId → last fired ms
 
   constructor(private chainId: number) {
@@ -25,9 +25,9 @@ export class RuleEngine {
     }
   }
 
-  register(rule: CRERule): void {
+  register(rule: FRERule): void {
     this.rules.set(rule.id, rule);
-    console.log(`[CRE] Registered rule: ${rule.id}`);
+    console.log(`[FRE] Registered rule: ${rule.id}`);
   }
 
   unregister(ruleId: string): void {
@@ -36,10 +36,10 @@ export class RuleEngine {
 
   start(): void {
     eventBus.subscribe<RiskSnapshotData>('RISK_SNAPSHOT', (event) => this.evaluate(event));
-    console.log(`[CRE] Started with ${this.rules.size} rule(s)`);
+    console.log(`[FRE] Started with ${this.rules.size} rule(s)`);
   }
 
-  getAlertHistory(limit = 50): Array<FintechEvent<CREAlertData>> {
+  getAlertHistory(limit = 50): Array<FintechEvent<FREAlertData>> {
     return this.alertHistory.slice(-limit);
   }
 
@@ -60,9 +60,9 @@ export class RuleEngine {
 
       this.lastFired.set(rule.id, now);
       triggered.push(rule.id);
-      const alertEvent: FintechEvent<CREAlertData> = {
+      const alertEvent: FintechEvent<FREAlertData> = {
         id: uuidv4(),
-        type: 'CRE_ALERT',
+        type: 'FRE_ALERT',
         source: event.source,
         chainId: this.chainId,
         timestamp: Date.now(),
@@ -73,7 +73,7 @@ export class RuleEngine {
       if (this.alertHistory.length > 500) this.alertHistory.shift();
 
       eventBus.publish(alertEvent);
-      console.log(`[CRE] ALERT [${alert.severity}] ${alert.ruleName}: ${alert.message}`);
+      console.log(`[FRE] ALERT [${alert.severity}] ${alert.ruleName}: ${alert.message}`);
     }
 
     // Update snapshot with which rules fired

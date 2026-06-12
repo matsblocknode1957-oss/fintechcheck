@@ -9,7 +9,7 @@ import { FintechEvent, EventType } from '../types';
 class EventBus extends EventEmitter {
   publish<T>(event: FintechEvent<T>): void {
     this.emit(event.type, event);
-    this.emit('*', event);   // wildcard — risk engine and CRE subscribe here
+    this.emit('*', event);   // wildcard — risk engine and FRE subscribe here
   }
 
   subscribe<T>(type: EventType | '*', handler: (event: FintechEvent<T>) => void): void {

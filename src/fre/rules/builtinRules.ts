@@ -1,13 +1,13 @@
-import { CRERule, RuleContext } from '../types';
-import { CREAlertData } from '../../types';
+import { FRERule, RuleContext } from '../types';
+import { FREAlertData } from '../../types';
 
-export const builtinRules: CRERule[] = [
+export const builtinRules: FRERule[] = [
   {
     id: 'peg-stress-critical',
     name: 'Critical Peg Stress',
     description: 'Fires when peg stress score exceeds 80',
     cooldownMs: 600_000,   // 10-minute cooldown — was firing every 60s per poll cycle
-    evaluate({ event }: RuleContext): CREAlertData | null {
+    evaluate({ event }: RuleContext): FREAlertData | null {
       if (event.data.pegStress < 80) return null;
       return {
         ruleId: 'peg-stress-critical',
@@ -23,7 +23,7 @@ export const builtinRules: CRERule[] = [
     id: 'liquidation-cascade',
     name: 'Liquidation Cascade Warning',
     description: 'Fires when liquidation stress score exceeds 60',
-    evaluate({ event }: RuleContext): CREAlertData | null {
+    evaluate({ event }: RuleContext): FREAlertData | null {
       if (event.data.liquidationStress < 60) return null;
       return {
         ruleId: 'liquidation-cascade',
@@ -39,7 +39,7 @@ export const builtinRules: CRERule[] = [
     id: 'composite-systemic-risk',
     name: 'Systemic Risk Threshold',
     description: 'Fires when composite risk score exceeds 70',
-    evaluate({ event }: RuleContext): CREAlertData | null {
+    evaluate({ event }: RuleContext): FREAlertData | null {
       if (event.data.composite < 70) return null;
       return {
         ruleId: 'composite-systemic-risk',
@@ -60,7 +60,7 @@ export const builtinRules: CRERule[] = [
     id: 'flow-pressure-high',
     name: 'High Flow Pressure',
     description: 'Fires when net outflow pressure exceeds 50',
-    evaluate({ event }: RuleContext): CREAlertData | null {
+    evaluate({ event }: RuleContext): FREAlertData | null {
       if (event.data.flowPressure < 50) return null;
       return {
         ruleId: 'flow-pressure-high',
@@ -76,7 +76,7 @@ export const builtinRules: CRERule[] = [
     id: 'correlated-depeg-event',
     name: 'Correlated Depeg Event',
     description: 'Fires when 5+ coins drop simultaneously in the same cycle',
-    evaluate({ event }: RuleContext): CREAlertData | null {
+    evaluate({ event }: RuleContext): FREAlertData | null {
       const coins = event.data.correlatedCoins ?? [];
       if (coins.length < 5) return null;
       return {

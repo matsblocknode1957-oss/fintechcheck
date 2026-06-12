@@ -1,7 +1,7 @@
 /**
  * Unified event schema for all FintechCheck data flows.
  * Every piece of data entering the system is wrapped in a FintechEvent.
- * This is the single contract between ingestion, state, risk, and CRE layers.
+ * This is the single contract between ingestion, state, risk, and FRE layers.
  */
 
 export type EventSource = 'PegCheck' | 'LiquidLens' | 'ChainlinkPoR';
@@ -18,7 +18,7 @@ export type EventType =
   | 'WHALE_TRANSFER'
   // Internal
   | 'RISK_SNAPSHOT'
-  | 'CRE_ALERT';
+  | 'FRE_ALERT';
 
 export interface FintechEvent<T = unknown> {
   id: string;
@@ -98,7 +98,7 @@ export interface RiskSnapshotData {
   correlatedCoins?: string[];  // assets dropping simultaneously when corrScore > 0
 }
 
-export interface CREAlertData {
+export interface FREAlertData {
   ruleId: string;
   ruleName: string;
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';

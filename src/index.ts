@@ -8,7 +8,7 @@ import { PegCheckAdaptor } from './ingest/adaptors/PegCheckAdaptor';
 import { ChainlinkPoRAdaptor } from './ingest/adaptors/ChainlinkPoRAdaptor';
 import { LiquidLensAdaptor } from './ingest/adaptors/LiquidLensAdaptor';
 import { RiskEngine } from './risk/RiskEngine';
-import { RuleEngine } from './cre/RuleEngine';
+import { RuleEngine } from './fre/RuleEngine';
 import { createServer } from './api/server';
 import { startEurUsdRefresh, stopEurUsdRefresh } from './utils/eurUsdRate';
 
@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   new LiquidationProcessor(store).start();
   new PoRProcessor(store).start();
 
-  // 3. Risk + CRE (subscribe before adaptors produce events)
+  // 3. Risk + FRE (subscribe before adaptors produce events)
   const riskEngine = new RiskEngine(store, CHAIN_ID);
   const ruleEngine = new RuleEngine(CHAIN_ID);
   riskEngine.start();
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
   });
 
   // 7. Global alert logger
-  eventBus.subscribe('CRE_ALERT', (event) => {
+  eventBus.subscribe('FRE_ALERT', (event) => {
     const d = (event as { data: { severity: string; ruleName: string; message: string } }).data;
     console.log(`\n  *** ALERT [${d.severity}] ${d.ruleName}\n      ${d.message}\n`);
   });
