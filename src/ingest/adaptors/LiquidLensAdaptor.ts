@@ -23,7 +23,8 @@ const ETH_RPC          = process.env.ETH_RPC_URL ?? 'https://ethereum.publicnode
 const POLL_INTERVAL_MS = 60_000;
 const LIQN_LOOKBACK    = 300;    // blocks ≈ 1 hour   (liquidations are rare)
 const XFER_LOOKBACK    = 50;     // blocks ≈ 10 min   (transfers are high-volume)
-const MAX_BLOCK_RANGE  = 2_000;  // Alchemy free tier hard limit for eth_getLogs
+const LOG_CHUNK_SIZE   = 10;     // Alchemy free tier: max block range per eth_getLogs call
+const MAX_BLOCK_RANGE  = 2_000;  // hard cap on total lookback range per poll
 const WHALE_USD_MIN    = 1_000_000;
 
 // ── Token metadata ────────────────────────────────────────────────────────────
@@ -244,6 +245,24 @@ export class LiquidLensAdaptor {
     return parsed.result as T;
   }
 
+  private async getLogsChunked(
+    filter: Record<string, unknown>,
+    from: number,
+    to: number,
+  ): Promise<EthLog[]> {
+    const all: EthLog[] = [];
+    for (let start = from; start <= to; start += LOG_CHUNK_SIZE) {
+      const end = Math.min(start + LOG_CHUNK_SIZE - 1, to);
+      const chunk = await this.rpc<EthLog[]>('eth_getLogs', [{
+        ...filter,
+        fromBlock: `0x${start.toString(16)}`,
+        toBlock:   `0x${end.toString(16)}`,
+      }]);
+      all.push(...chunk);
+    }
+    return all;
+  }
+
   private async poll(): Promise<void> {
     const latest  = parseInt(await this.rpc<string>('eth_blockNumber', []), 16);
     const isFirst = this.lastBlock === 0;
@@ -256,20 +275,11 @@ export class LiquidLensAdaptor {
 
     if (liqFrom > latest) return;
 
-    // Fetch both event types in parallel to minimise wall-clock latency.
+    // Fetch both event types in parallel; each is chunked internally to satisfy
+    // the Alchemy free-tier 10-block-range limit on eth_getLogs.
     const [liqLogs, xferLogs] = await Promise.all([
-      this.rpc<EthLog[]>('eth_getLogs', [{
-        address:   AAVE_V3_POOL,
-        topics:    [LIQUIDATION_TOPIC0],
-        fromBlock: `0x${liqFrom.toString(16)}`,
-        toBlock:   `0x${latest.toString(16)}`,
-      }]),
-      this.rpc<EthLog[]>('eth_getLogs', [{
-        address:   [USDC, USDT],   // single request covers both tokens
-        topics:    [TRANSFER_TOPIC0],
-        fromBlock: `0x${xferFrom.toString(16)}`,
-        toBlock:   `0x${latest.toString(16)}`,
-      }]),
+      this.getLogsChunked({ address: AAVE_V3_POOL, topics: [LIQUIDATION_TOPIC0] }, liqFrom, latest),
+      this.getLogsChunked({ address: [USDC, USDT], topics: [TRANSFER_TOPIC0] },   xferFrom, latest),
     ]);
 
     this.lastBlock = latest;
