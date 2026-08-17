@@ -19,7 +19,7 @@ const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
 
 // ── Poll config ───────────────────────────────────────────────────────────────
 
-const ETH_RPC          = 'https://ethereum.publicnode.com';
+const ETH_RPC          = process.env.ETH_RPC_URL ?? 'https://ethereum.publicnode.com';
 const POLL_INTERVAL_MS = 60_000;
 const LIQN_LOOKBACK    = 300;    // blocks ≈ 1 hour   (liquidations are rare)
 const XFER_LOOKBACK    = 50;     // blocks ≈ 10 min   (transfers are high-volume)
